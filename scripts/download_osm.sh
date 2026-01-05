@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # --- KONFIGURATION ---
 # Pfad zur Datei mit den Links
@@ -7,6 +8,7 @@ INPUT_FILE="/srv/scripts/links.txt"
 OUTPUT_DIR="/srv/osm/parts"
 # Name der Datei, welche die Pfade der Downloads speichert
 LIST_FILE="$OUTPUT_DIR/file_list.txt"
+UPDATED_FLAG="$OUTPUT_DIR/updated.flag"
 
 # --- VORBEREITUNG ---
 
@@ -24,6 +26,7 @@ fi
 
 # Die Listen-Datei leeren oder erstellen (damit wir bei jedem Lauf eine frische Liste haben)
 > "$LIST_FILE"
+rm -f "$UPDATED_FLAG"
 
 # Links einlesen
 mapfile -t URLS < <(grep -vE '^\s*($|#)' "$INPUT_FILE")
@@ -39,6 +42,7 @@ echo "Dateiliste wird erstellt in: $LIST_FILE"
 echo "--------------------------------------------------"
 
 CURRENT=1
+NEW_DOWNLOADS=0
 
 for LINK in "${URLS[@]}"; do
     FILENAME=$(basename "$LINK")
@@ -47,12 +51,22 @@ for LINK in "${URLS[@]}"; do
     echo ""
     echo "[Datei $CURRENT von $TOTAL_LINKS]: $FILENAME wird verarbeitet..."
     
-    # Download starten
-    wget -q --show-progress -c -P "$OUTPUT_DIR" "$LINK"
-    
-    # Prüfen ob wget erfolgreich war (0 = Erfolg)
-    if [ $? -eq 0 ]; then
+    OLD_MTIME=""
+    if [ -f "$FULL_PATH" ]; then
+        OLD_MTIME=$(stat -c %Y "$FULL_PATH")
+    fi
+
+    # Download starten (nur wenn remote neuer ist)
+    if wget -q --show-progress -N -P "$OUTPUT_DIR" "$LINK"; then
         echo "✓ Download OK."
+        if [ ! -f "$FULL_PATH" ]; then
+            echo "❌ FEHLER: Datei $FULL_PATH fehlt nach Download."
+            continue
+        fi
+        NEW_MTIME=$(stat -c %Y "$FULL_PATH")
+        if [ -z "$OLD_MTIME" ] || [ "$NEW_MTIME" != "$OLD_MTIME" ]; then
+            NEW_DOWNLOADS=1
+        fi
         # Absoluten Pfad in die Liste schreiben
         echo "$FULL_PATH" >> "$LIST_FILE"
     else
@@ -66,4 +80,10 @@ echo ""
 echo "--------------------------------------------------"
 echo "Fertig! Die Liste der Dateien liegt hier:"
 echo "$LIST_FILE"
+if [ "$NEW_DOWNLOADS" -eq 1 ]; then
+    touch "$UPDATED_FLAG"
+    echo "Neue Dateien erkannt: Merge/PMTiles sollten neu laufen."
+else
+    echo "Keine neuen Dateien gefunden: Merge/PMTiles können übersprungen werden."
+fi
 echo "--------------------------------------------------"
