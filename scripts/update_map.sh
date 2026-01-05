@@ -7,6 +7,10 @@ if [ ! -w "$(dirname "$LOGFILE")" ] && [ ! -w "$LOGFILE" ]; then
     mkdir -p "$(dirname "$LOGFILE")"
 fi
 UPDATED_FLAG="/srv/osm/parts/updated.flag"
+MERGED_FILE="/srv/osm/merged/complete_map.osm.pbf"
+PMTILES_FILE="/srv/pmtiles/serve/at-plus.pmtiles"
+INFO_JSON="/srv/pmtiles/serve/info.json"
+TODAY="$(date +%Y-%m-%d)"
 
 # Funktion für Logging mit Zeitstempel
 log() {
@@ -22,8 +26,14 @@ if ! /srv/scripts/download_osm.sh >> "$LOGFILE" 2>&1; then
     exit 1
 fi
 if [ ! -f "$UPDATED_FLAG" ]; then
-    log "ℹ️ Keine neuen Downloads. Merge und PMTiles werden übersprungen."
-    exit 0
+    if [ -f "$MERGED_FILE" ] && [ -f "$PMTILES_FILE" ] && [ -f "$INFO_JSON" ]; then
+        DATASET_DATE=$(python3 -c "import json; print(json.load(open('$INFO_JSON')).get('dataset_date',''))" 2>/dev/null || true)
+        if [ "$DATASET_DATE" = "$TODAY" ]; then
+            log "ℹ️ Keine neuen Downloads und heutige PMTiles vorhanden. Merge und PMTiles werden übersprungen."
+            exit 0
+        fi
+    fi
+    log "ℹ️ Keine neuen Downloads, aber aktuelle Outputs fehlen. Merge/PMTiles laufen trotzdem."
 fi
 
 # 2. Merge
