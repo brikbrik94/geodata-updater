@@ -6,6 +6,7 @@ if [ ! -w "$(dirname "$LOGFILE")" ] && [ ! -w "$LOGFILE" ]; then
     LOGFILE="${LOGFILE_FALLBACK:-/srv/scripts/osm_update.log}"
     mkdir -p "$(dirname "$LOGFILE")"
 fi
+UPDATED_FLAG="/srv/osm/parts/updated.flag"
 
 # Funktion für Logging mit Zeitstempel
 log() {
@@ -19,6 +20,10 @@ log "Schritt 1/3: Download starte..."
 if ! /srv/scripts/download_osm.sh >> "$LOGFILE" 2>&1; then
     log "❌ FEHLER beim Download. Abbruch."
     exit 1
+fi
+if [ ! -f "$UPDATED_FLAG" ]; then
+    log "ℹ️ Keine neuen Downloads. Merge und PMTiles werden übersprungen."
+    exit 0
 fi
 
 # 2. Merge

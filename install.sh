@@ -18,6 +18,7 @@ fi
 if getent group docker >/dev/null 2>&1; then
     echo "[0] Füge '$USER_NAME' zur docker-Gruppe hinzu..."
     sudo usermod -aG docker "$USER_NAME"
+    echo "[0] Hinweis: Bitte neu einloggen oder 'newgrp docker' ausführen, damit die Gruppenänderung wirkt."
 else
     echo "[0] docker-Gruppe nicht gefunden. Überspringe Gruppen-Zuweisung."
 fi
@@ -43,7 +44,7 @@ sudo mkdir -p "$ORS_DIR/tmp"
 
 # 3. Skripte kopieren
 echo "[3] Kopiere Skripte & Config..."
-sudo cp scripts/*.sh "$INSTALL_DIR/"
+sudo cp scripts/* "$INSTALL_DIR/"
 sudo cp conf/links.txt "$INSTALL_DIR/"
 
 # 4. Rechte setzen
