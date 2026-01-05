@@ -17,6 +17,10 @@ USE_SUDO="${USE_SUDO:-0}"
 # --- VORBEREITUNG ---
 export STATS_DIR="$STATS_DIR"
 
+if ! command -v docker >/dev/null 2>&1; then
+    echo "❌ FEHLER: 'docker' Kommando nicht gefunden. Bitte Docker installieren (z.B. docker.io)."
+    exit 1
+fi
 if ! systemctl is-active --quiet docker; then echo "❌ FEHLER: Docker läuft nicht."; exit 1; fi
 if [ ! -f "$INPUT_PBF" ]; then echo "❌ FEHLER: Input-Datei $INPUT_PBF nicht gefunden."; exit 1; fi
 
