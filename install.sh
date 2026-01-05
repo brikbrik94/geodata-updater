@@ -1,11 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 
 # Konfiguration
-USER_NAME="daniel"  # Dein User auf dem VPS
-INSTALL_DIR="/srv/scripts"
-DATA_DIR="/srv/osm"
-TILE_DIR="/srv/pmtiles"
-ORS_DIR="/srv/ors"
+USER_NAME="${USER_NAME:-daniel}"  # Dein User auf dem VPS
+INSTALL_DIR="${INSTALL_DIR:-/srv/scripts}"
+DATA_DIR="${DATA_DIR:-/srv/osm}"
+TILE_DIR="${TILE_DIR:-/srv/pmtiles}"
+ORS_DIR="${ORS_DIR:-/srv/ors}"
 
 echo "=== OSM Geodata Pipeline Installer ==="
 
