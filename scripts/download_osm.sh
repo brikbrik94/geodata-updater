@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # --- KONFIGURATION ---
 # Pfad zur Datei mit den Links
@@ -48,10 +49,7 @@ for LINK in "${URLS[@]}"; do
     echo "[Datei $CURRENT von $TOTAL_LINKS]: $FILENAME wird verarbeitet..."
     
     # Download starten
-    wget -q --show-progress -c -P "$OUTPUT_DIR" "$LINK"
-    
-    # Prüfen ob wget erfolgreich war (0 = Erfolg)
-    if [ $? -eq 0 ]; then
+    if wget -q --show-progress -c -P "$OUTPUT_DIR" "$LINK"; then
         echo "✓ Download OK."
         # Absoluten Pfad in die Liste schreiben
         echo "$FULL_PATH" >> "$LIST_FILE"
