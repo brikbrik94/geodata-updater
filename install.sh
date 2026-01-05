@@ -1,13 +1,20 @@
 #!/bin/bash
+set -euo pipefail
 
 # Konfiguration
-USER_NAME="daniel"  # Dein User auf dem VPS
-INSTALL_DIR="/srv/scripts"
-DATA_DIR="/srv/osm"
-TILE_DIR="/srv/pmtiles"
-ORS_DIR="/srv/ors"
+USER_NAME="${USER_NAME:-geo}"  # Dein User auf dem VPS
+INSTALL_DIR="${INSTALL_DIR:-/srv/scripts}"
+DATA_DIR="${DATA_DIR:-/srv/osm}"
+TILE_DIR="${TILE_DIR:-/srv/pmtiles}"
+ORS_DIR="${ORS_DIR:-/srv/ors}"
 
 echo "=== OSM Geodata Pipeline Installer ==="
+
+# 0. Benutzer prüfen/erstellen
+if ! id -u "$USER_NAME" >/dev/null 2>&1; then
+    echo "[0] Erstelle System-User '$USER_NAME'..."
+    sudo useradd --system --create-home --shell /usr/sbin/nologin "$USER_NAME"
+fi
 
 # 1. Abhängigkeiten prüfen/installieren
 echo "[1] Installiere System-Pakete..."
