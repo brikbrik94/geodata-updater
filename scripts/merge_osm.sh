@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # --- KONFIGURATION ---
 # Die Liste aus dem Download-Script
@@ -51,7 +52,7 @@ echo "Füge $COUNT Dateien zusammen..."
 # Osmium Merge Befehl
 # $(cat ...) liest die Dateipfade aus der Textdatei und übergibt sie als Argumente
 # --overwrite sorgt dafür, dass die alte Datei ohne Nachfrage überschrieben wird (spart Platz)
-osmium merge $(cat "$INPUT_LIST") -o "$FULL_OUTPUT_PATH" --overwrite
+xargs -a "$INPUT_LIST" osmium merge -o "$FULL_OUTPUT_PATH" --overwrite
 
 # Ergebnis prüfen
 if [ $? -eq 0 ]; then
