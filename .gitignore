@@ -1,0 +1,12 @@
+# Keine OSM Daten
+*.pbf
+*.pmtiles
+*.osm
+
+# Keine Logs
+*.log
+stats/
+reports/
+
+# Keine System-Ordner
+.DS_Store
