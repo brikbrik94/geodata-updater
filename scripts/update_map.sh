@@ -1,6 +1,11 @@
 #!/bin/bash
+set -euo pipefail
 
-LOGFILE="/var/log/osm_update.log"
+LOGFILE="${LOGFILE:-/var/log/osm_update.log}"
+if [ ! -w "$(dirname "$LOGFILE")" ] && [ ! -w "$LOGFILE" ]; then
+    LOGFILE="${LOGFILE_FALLBACK:-/srv/scripts/osm_update.log}"
+    mkdir -p "$(dirname "$LOGFILE")"
+fi
 
 # Funktion für Logging mit Zeitstempel
 log() {
@@ -11,24 +16,21 @@ log "=== START: Karten-Update Prozess ==="
 
 # 1. Download
 log "Schritt 1/3: Download starte..."
-/srv/scripts/download_osm.sh >> "$LOGFILE" 2>&1
-if [ $? -ne 0 ]; then
+if ! /srv/scripts/download_osm.sh >> "$LOGFILE" 2>&1; then
     log "❌ FEHLER beim Download. Abbruch."
     exit 1
 fi
 
 # 2. Merge
 log "Schritt 2/3: Merge starte..."
-/srv/scripts/merge_osm.sh >> "$LOGFILE" 2>&1
-if [ $? -ne 0 ]; then
+if ! /srv/scripts/merge_osm.sh >> "$LOGFILE" 2>&1; then
     log "❌ FEHLER beim Mergen. Abbruch."
     exit 1
 fi
 
 # 3. PMTiles erstellen
 log "Schritt 3/3: PMTiles Generierung starte..."
-/srv/scripts/create_pmtiles.sh >> "$LOGFILE" 2>&1
-if [ $? -ne 0 ]; then
+if ! /srv/scripts/create_pmtiles.sh >> "$LOGFILE" 2>&1; then
     log "❌ FEHLER bei Planetiler. Abbruch."
     exit 1
 fi
