@@ -65,8 +65,6 @@ sudo mkdir -p "$TILES_DIR/overlays/pmtiles"
 sudo mkdir -p "$TILES_DIR/overlays/tilejson"
 sudo mkdir -p "$TILES_DIR/overlays/styles/overlay-xyz"
 sudo mkdir -p "$ASSETS_DIR/fonts" "$ASSETS_DIR/sprites"
-sudo mkdir -p "$BUILD_DIR/$TILESET_ID/out"
-sudo mkdir -p "$BUILD_DIR/$TILESET_ID/sources"
 # ORS Struktur (damit es bereit ist für dein anderes Repo)
 sudo mkdir -p "$ORS_DIR/emergency"
 sudo mkdir -p "$ORS_DIR/graphs"
