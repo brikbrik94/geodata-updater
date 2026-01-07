@@ -8,8 +8,9 @@ if [ ! -w "$(dirname "$LOGFILE")" ] && [ ! -w "$LOGFILE" ]; then
 fi
 UPDATED_FLAG="/srv/osm/parts/updated.flag"
 MERGED_FILE="/srv/osm/merged/complete_map.osm.pbf"
-PMTILES_FILE="/srv/pmtiles/serve/at-plus.pmtiles"
-INFO_JSON="/srv/pmtiles/serve/info.json"
+TILESET_ID="${TILESET_ID:-osm}"
+PMTILES_FILE="/srv/tiles/$TILESET_ID/pmtiles/at-plus.pmtiles"
+INFO_JSON="/srv/tiles/$TILESET_ID/tilejson/${TILESET_ID}.json"
 TODAY="$(date +%Y-%m-%d)"
 
 # Funktion für Logging mit Zeitstempel
