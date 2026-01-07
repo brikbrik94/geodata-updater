@@ -1,13 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
+echo "Hinweis: update_map.sh ist veraltet. Bitte start.sh verwenden."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/start.sh" "$@"
+
 LOGFILE="${LOGFILE:-/var/log/osm_update.log}"
 if [ ! -w "$(dirname "$LOGFILE")" ] && [ ! -w "$LOGFILE" ]; then
     LOGFILE="${LOGFILE_FALLBACK:-/srv/scripts/osm_update.log}"
     mkdir -p "$(dirname "$LOGFILE")"
 fi
-UPDATED_FLAG="/srv/osm/parts/updated.flag"
-MERGED_FILE="/srv/osm/merged/complete_map.osm.pbf"
+UPDATED_FLAG="/srv/build/osm/src/updated.flag"
+MERGED_FILE="/srv/build/osm/merged/complete_map.osm.pbf"
 TILESET_ID="${TILESET_ID:-osm}"
 PMTILES_FILE="/srv/tiles/$TILESET_ID/pmtiles/at-plus.pmtiles"
 INFO_JSON="/srv/tiles/$TILESET_ID/tilejson/${TILESET_ID}.json"
@@ -57,7 +61,7 @@ SKIP_MERGE=0
 SKIP_PMTILES=0
 if [ ! -f "$UPDATED_FLAG" ]; then
     if [ -f "$MERGED_FILE" ]; then
-        LATEST_PART_MTIME=$(find /srv/osm/parts -name "*.osm.pbf" -type f -printf "%T@\n" | sort -nr | head -n 1 || true)
+        LATEST_PART_MTIME=$(find /srv/build/osm/src -name "*.osm.pbf" -type f -printf "%T@\n" | sort -nr | head -n 1 || true)
         MERGED_MTIME=$(stat -c %Y "$MERGED_FILE" 2>/dev/null || echo 0)
         if [ -n "$LATEST_PART_MTIME" ] && [ "${LATEST_PART_MTIME%.*}" -le "$MERGED_MTIME" ]; then
             SKIP_MERGE=1

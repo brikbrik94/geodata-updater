@@ -4,7 +4,7 @@ set -euo pipefail
 # Konfiguration
 USER_NAME="${USER_NAME:-geo}"  # Dein User auf dem VPS
 INSTALL_DIR="${INSTALL_DIR:-/srv/scripts}"
-DATA_DIR="${DATA_DIR:-/srv/osm}"
+OSM_BUILD_DIR="${OSM_BUILD_DIR:-/srv/build/osm}"
 TILESET_ID="${TILESET_ID:-osm}"
 STYLE_ID="${STYLE_ID:-$TILESET_ID}"
 TILES_DIR="${TILES_DIR:-/srv/tiles}"
@@ -41,8 +41,9 @@ sudo apt-get install -y osmium-tool wget python3 docker.io docker-cli acl
 # 2. Ordnerstruktur erstellen
 echo "[2] Erstelle Ordnerstruktur in /srv..."
 sudo mkdir -p "$INSTALL_DIR/stats"
-sudo mkdir -p "$DATA_DIR/parts"
-sudo mkdir -p "$DATA_DIR/merged"
+sudo mkdir -p "$OSM_BUILD_DIR/src"
+sudo mkdir -p "$OSM_BUILD_DIR/tmp"
+sudo mkdir -p "$OSM_BUILD_DIR/merged"
 sudo mkdir -p "$TILES_DIR/$TILESET_ID/pmtiles"
 sudo mkdir -p "$TILES_DIR/$TILESET_ID/tilejson"
 sudo mkdir -p "$TILES_DIR/$TILESET_ID/styles/$STYLE_ID"
@@ -68,7 +69,7 @@ fi
 # 4. Rechte setzen
 echo "[4] Setze Berechtigungen..."
 sudo chmod +x "$INSTALL_DIR/"*.sh
-sudo chown -R $USER_NAME:$USER_NAME /srv/osm /srv/tiles /srv/assets /srv/build /srv/scripts /srv/ors
+sudo chown -R $USER_NAME:$USER_NAME /srv/tiles /srv/assets /srv/build /srv/scripts /srv/ors
 
 # 5. Docker Rechte für User (damit sudo docker nicht nötig ist, optional)
 # sudo usermod -aG docker $USER_NAME

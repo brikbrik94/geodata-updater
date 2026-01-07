@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # --- KONFIGURATION ---
-INPUT_PBF="/srv/osm/merged/complete_map.osm.pbf"
+INPUT_PBF="/srv/build/osm/merged/complete_map.osm.pbf"
 INPUT_FILENAME="complete_map.osm.pbf"
 TILESET_ID="${TILESET_ID:-osm}"
 STYLE_ID="${STYLE_ID:-$TILESET_ID}"

@@ -85,7 +85,7 @@ Logs werden standardmäßig in `/var/log/osm_update.log` geschrieben (oder nach
 ## Verzeichnisse
 
 - Skripte: `/srv/scripts`
-- OSM Daten: `/srv/osm`
+- OSM Daten: `/srv/build/osm/src` (Quellen), `/srv/build/osm/merged` (Merge)
 - Tilesets: `/srv/tiles/<tileset-id>`
 - Assets: `/srv/assets`
 - Build: `/srv/build/<tileset-id>`
