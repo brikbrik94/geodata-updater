@@ -3,9 +3,9 @@ set -euo pipefail
 
 # --- KONFIGURATION ---
 # Die Liste aus dem Download-Script
-INPUT_LIST="/srv/osm/parts/file_list.txt"
+INPUT_LIST="/srv/build/osm/src/file_list.txt"
 # Zielordner für die fertige Datei
-OUTPUT_DIR="/srv/osm/merged"
+OUTPUT_DIR="/srv/build/osm/merged"
 # Name der finalen Datei
 OUTPUT_FILENAME="complete_map.osm.pbf"
 FULL_OUTPUT_PATH="$OUTPUT_DIR/$OUTPUT_FILENAME"
