@@ -3,7 +3,7 @@ set -euo pipefail
 
 BASEMAP_URL="${BASEMAP_URL:-https://cdn.basemap.at/offline/bmapv_vtpk_3857.vtpk}"
 BASEMAP_ID="${BASEMAP_ID:-basemap-at}"
-OUTPUT_DIR="${BASEMAP_OUTPUT_DIR:-/srv/build/$BASEMAP_ID}"
+OUTPUT_DIR="${BASEMAP_OUTPUT_DIR:-/srv/build/$BASEMAP_ID/src}"
 
 mkdir -p "$OUTPUT_DIR"
 

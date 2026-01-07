@@ -3,7 +3,7 @@ set -euo pipefail
 
 CONTOURS_URL="${CONTOURS_URL:-https://cdn.basemap.at/offline/bmapvhl_vtpk_3857.vtpk}"
 CONTOURS_ID="${CONTOURS_ID:-basemap-at-contours}"
-OUTPUT_DIR="${CONTOURS_OUTPUT_DIR:-/srv/build/$CONTOURS_ID}"
+OUTPUT_DIR="${CONTOURS_OUTPUT_DIR:-/srv/build/$CONTOURS_ID/src}"
 FORCE_DOWNLOAD="${FORCE_DOWNLOAD:-0}"
 
 mkdir -p "$OUTPUT_DIR"

@@ -42,7 +42,7 @@ Der Download erfolgt über `scripts/download_basemap.sh` von:
 `https://cdn.basemap.at/offline/bmapv_vtpk_3857.vtpk`.
 
 Die Datei wird nur neu geladen, wenn sie älter als 2 Jahre ist. Zielpfad:
-`/srv/build/basemap-at/bmapv_vtpk_3857.vtpk` (anpassbar via `BASEMAP_OUTPUT_DIR`).
+`/srv/build/basemap-at/src/bmapv_vtpk_3857.vtpk` (anpassbar via `BASEMAP_OUTPUT_DIR`).
 
 ### basemap.at Contours (VTPK)
 
@@ -51,7 +51,7 @@ Für Höhenlinien gibt es `scripts/download_basemap_contours.sh` mit dem Link:
 
 Der Download erfolgt nur, wenn die Datei noch nicht vorhanden ist. Ein erneuter
 Download kann über `FORCE_DOWNLOAD=1` erzwungen werden. Zielpfad:
-`/srv/build/basemap-at-contours/bmapvhl_vtpk_3857.vtpk` (anpassbar via `CONTOURS_OUTPUT_DIR`).
+`/srv/build/basemap-at-contours/src/bmapvhl_vtpk_3857.vtpk` (anpassbar via `CONTOURS_OUTPUT_DIR`).
 
 ### style.json (PMTiles Stylesheet)
 
@@ -85,7 +85,7 @@ Logs werden standardmäßig in `/var/log/osm_update.log` geschrieben (oder nach
 ## Verzeichnisse
 
 - Skripte: `/srv/scripts`
-- OSM Daten: `/srv/build/osm/src` (Quellen), `/srv/build/osm/merged` (Merge)
+- OSM Daten: `/srv/build/osm/src` (Downloads), `/srv/build/osm/merged` (Merge)
 - Tilesets: `/srv/tiles/<tileset-id>`
 - Assets: `/srv/assets`
 - Build: `/srv/build/<tileset-id>`
@@ -97,11 +97,15 @@ Logs werden standardmäßig in `/var/log/osm_update.log` geschrieben (oder nach
 ├── tiles/
 │   ├── osm/
 │   │   ├── pmtiles/
+│   │   │   ├── at.pmtiles
 │   │   │   └── at-plus.pmtiles
 │   │   ├── tilejson/
+│   │   │   ├── at.json
 │   │   │   └── at-plus.json
 │   │   └── styles/
-│   │       └── at-plus/
+│   │       ├── at-plus/
+│   │       │   └── style.json
+│   │       └── at/
 │   │           └── style.json
 │   ├── basemap-at/
 │   │   ├── pmtiles/
@@ -134,8 +138,17 @@ Logs werden standardmäßig in `/var/log/osm_update.log` geschrieben (oder nach
 │   └── (wie bisher)
 ├── build/
 │   ├── osm/
+│   │   ├── merged/
+│   │   ├── src/
+│   │   └── tmp/
 │   ├── basemap-at/
+│   │   ├── src/
+│   │   └── tmp/
 │   ├── basemap-at-contours/
+│   │   ├── src/
+│   │   └── tmp/
 │   └── overlays/
+│       ├── src/
+│       └── tmp/
 └── scripts/
 ```
