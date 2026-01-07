@@ -8,8 +8,9 @@ if [ ! -w "$(dirname "$LOGFILE")" ] && [ ! -w "$LOGFILE" ]; then
 fi
 UPDATED_FLAG="/srv/osm/parts/updated.flag"
 MERGED_FILE="/srv/osm/merged/complete_map.osm.pbf"
-PMTILES_FILE="/srv/pmtiles/serve/at-plus.pmtiles"
-INFO_JSON="/srv/pmtiles/serve/info.json"
+TILESET_ID="${TILESET_ID:-osm}"
+PMTILES_FILE="/srv/tiles/$TILESET_ID/pmtiles/at-plus.pmtiles"
+INFO_JSON="/srv/tiles/$TILESET_ID/tilejson/${TILESET_ID}.json"
 TODAY="$(date +%Y-%m-%d)"
 
 # Funktion für Logging mit Zeitstempel
@@ -17,10 +18,37 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOGFILE"
 }
 
+REBUILD_ORS=0
+for arg in "$@"; do
+    case "$arg" in
+        --rebuild-ors|-o)
+            REBUILD_ORS=1
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--rebuild-ors|-o]"
+            exit 0
+            ;;
+        *)
+            echo "Unbekannte Option: $arg"
+            echo "Usage: $0 [--rebuild-ors|-o]"
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$REBUILD_ORS" -eq 0 ] && [ -t 0 ]; then
+    read -r -p "ORS-Graphen neu bauen? (y/N): " reply
+    case "$reply" in
+        [yY]|[yY][eE][sS])
+            REBUILD_ORS=1
+            ;;
+    esac
+fi
+
 log "=== START: Karten-Update Prozess ==="
 
 # 1. Download
-log "Schritt 1/3: Download starte..."
+log "Schritt 1/4: Download starte..."
 if ! /srv/scripts/download_osm.sh >> "$LOGFILE" 2>&1; then
     log "❌ FEHLER beim Download. Abbruch."
     exit 1
@@ -48,24 +76,35 @@ fi
 
 # 2. Merge
 if [ "$SKIP_MERGE" -eq 0 ]; then
-    log "Schritt 2/3: Merge starte..."
+    log "Schritt 2/4: Merge starte..."
     if ! /srv/scripts/merge_osm.sh >> "$LOGFILE" 2>&1; then
         log "❌ FEHLER beim Mergen. Abbruch."
         exit 1
     fi
 else
-    log "Schritt 2/3: Merge übersprungen."
+    log "Schritt 2/4: Merge übersprungen."
 fi
 
 # 3. PMTiles erstellen
 if [ "$SKIP_PMTILES" -eq 0 ]; then
-    log "Schritt 3/3: PMTiles Generierung starte..."
+    log "Schritt 3/4: PMTiles Generierung starte..."
     if ! /srv/scripts/create_pmtiles.sh >> "$LOGFILE" 2>&1; then
         log "❌ FEHLER bei Planetiler. Abbruch."
         exit 1
     fi
 else
-    log "Schritt 3/3: PMTiles übersprungen."
+    log "Schritt 3/4: PMTiles übersprungen."
+fi
+
+# 4. ORS-Graphen neu bauen (optional)
+if [ "$REBUILD_ORS" -eq 1 ]; then
+    log "Schritt 4/4: ORS-Graphen werden neu gebaut..."
+    if ! /srv/scripts/rebuild_ors_graphs.sh >> "$LOGFILE" 2>&1; then
+        log "❌ FEHLER beim ORS-Graphenbuild. Abbruch."
+        exit 1
+    fi
+else
+    log "Schritt 4/4: ORS-Graphen übersprungen."
 fi
 
 log "✅ ERFOLG: Karte wurde komplett aktualisiert."
