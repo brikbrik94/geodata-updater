@@ -228,7 +228,9 @@ def main() -> None:
         if hasattr(writer, "finalize"):
             try:
                 sig = inspect.signature(writer.finalize)
-                params = len(sig.parameters) - 1
+                params = len(sig.parameters)
+                if params and next(iter(sig.parameters.values())).name == "self":
+                    params -= 1
             except (TypeError, ValueError):
                 params = 0
             if params >= 2:
