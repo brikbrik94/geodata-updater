@@ -14,17 +14,15 @@ VTPK="${VTPK:-$SRC/bmapv_vtpk_3857.vtpk}"
 RAW_DIR="${RAW_DIR:-$SRC/vtpk_raw}"
 P12_DIR="${P12_DIR:-$RAW_DIR/p12}"
 
-OUT_MBTILES="${OUT_MBTILES:-$TMP/basemap-at.mbtiles}"
 OUT_PMTILES="${OUT_PMTILES:-$TMP/basemap-at.pmtiles}"
 OUT_META="${OUT_META:-$TMP/metadaten.json}"
 
-PMTILES_JS="${PMTILES_JS:-/usr/local/lib/node_modules/pmtiles/dist/pmtiles.js}"
+CLEANUP="${CLEANUP:-1}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 command -v unzip >/dev/null 2>&1 || { echo "❌ unzip fehlt"; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "❌ python3 fehlt"; exit 1; }
-command -v node >/dev/null 2>&1 || { echo "❌ node fehlt"; exit 1; }
 
 mkdir -p "$TMP"
 
@@ -51,13 +49,13 @@ else
 fi
 
 # -------------------------------------------------------------------
-# 1) Esri CompactV2 (.bundle) -> MBTiles (OOM-sicher, streaming)
+# 1) Esri CompactV2 (.bundle) -> PMTiles (streaming)
 # -------------------------------------------------------------------
-echo "🧠 Extrahiere .bundle Tiles -> MBTiles"
+echo "🧠 Extrahiere .bundle Tiles -> PMTiles"
 
-python3 "$SCRIPT_DIR/vtpk_bundle_to_mbtiles.py" \
+python3 "$SCRIPT_DIR/vtpk_bundle_to_pmtiles.py" \
   --tiles "$P12_DIR/tile" \
-  --output "$OUT_MBTILES"
+  --output "$OUT_PMTILES"
 
 # -------------------------------------------------------------------
 # 2) metadata.json robust reparieren
@@ -68,26 +66,16 @@ python3 "$SCRIPT_DIR/fix_metadata_json.py" \
   --input "$P12_DIR/metadata.json" \
   --output "$OUT_META"
 
-# -------------------------------------------------------------------
-# 3) MBTiles -> PMTiles (direkt über node)
-# -------------------------------------------------------------------
-echo "🧱 Konvertiere MBTiles -> PMTiles"
-
-if [[ ! -f "$PMTILES_JS" ]]; then
-  echo "❌ pmtiles.js nicht gefunden: $PMTILES_JS"
-  exit 4
-fi
-
-rm -f "$OUT_PMTILES"
-
-node "$PMTILES_JS" convert "$OUT_MBTILES" "$OUT_PMTILES"
-
 if [[ ! -f "$OUT_PMTILES" ]]; then
-  echo "❌ pmtiles convert lief durch, aber Output fehlt"
+  echo "❌ PMTiles Output fehlt"
   exit 5
 fi
 
 echo "✅ Fertig"
 echo " - PMTiles : $OUT_PMTILES"
-echo " - MBTiles : $OUT_MBTILES"
 echo " - Metadata: $OUT_META"
+
+if [[ "$CLEANUP" == "1" ]]; then
+  echo "🧹 Räume temporäre Dateien auf"
+  rm -rf "$RAW_DIR"
+fi
