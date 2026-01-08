@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import importlib
+import inspect
 import re
 import struct
 from pathlib import Path
@@ -93,6 +94,29 @@ def main() -> None:
         tiles_written = 0
         bundles = 0
 
+        def write_tile(z, x, y, data):
+            if hasattr(writer, "write_tile"):
+                sig = inspect.signature(writer.write_tile)
+                params = len(sig.parameters)
+                if params == 3:
+                    writer.write_tile((z, x, y), data)
+                elif params == 4:
+                    writer.write_tile(z, x, y, data)
+                else:
+                    writer.write_tile(z, x, y, data)
+                return
+            if hasattr(writer, "write"):
+                sig = inspect.signature(writer.write)
+                params = len(sig.parameters)
+                if params == 3:
+                    writer.write((z, x, y), data)
+                elif params == 4:
+                    writer.write(z, x, y, data)
+                else:
+                    writer.write(z, x, y, data)
+                return
+            raise RuntimeError("PMTiles writer method not found")
+
         for bundle in iter_bundles(Path(args.tiles)):
             z = parse_level(bundle)
             r0, c0 = parse_rc(bundle)
@@ -106,12 +130,7 @@ def main() -> None:
                 x = c0 + col
                 y_xyz = (1 << z) - 1 - y_tms
 
-                if hasattr(writer, "write_tile"):
-                    writer.write_tile(z, x, y_xyz, blob)
-                elif hasattr(writer, "write"):
-                    writer.write(z, x, y_xyz, blob)
-                else:
-                    raise RuntimeError("PMTiles writer method not found")
+                write_tile(z, x, y_xyz, blob)
 
                 tiles_written += 1
                 wrote = True
