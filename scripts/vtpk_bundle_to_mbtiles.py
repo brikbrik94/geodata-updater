@@ -86,7 +86,7 @@ def main() -> None:
     cur.execute("PRAGMA journal_mode=DELETE;")
     cur.execute("PRAGMA synchronous=OFF;")
     cur.execute("PRAGMA temp_store=FILE;")
-    cur.execute("PRAGMA cache_size=-2000;")
+    cur.execute("PRAGMA cache_size=-200;")
     cur.execute("PRAGMA locking_mode=EXCLUSIVE;")
 
     cur.executescript(
@@ -107,7 +107,7 @@ CREATE TABLE metadata (name TEXT, value TEXT);
     batch_size = int(
         (Path("/proc/meminfo").read_text().split("MemAvailable:")[1].split()[0])
     ) if Path("/proc/meminfo").exists() else 0
-    batch_size = max(200, min(800, batch_size // 1024)) if batch_size else 400
+    batch_size = max(50, min(200, batch_size // 2048)) if batch_size else 100
     bundles = 0
     tiles = 0
 
