@@ -92,7 +92,7 @@ Logs werden standardmäßig in `/var/log/osm_update.log` geschrieben (oder nach
 
 - Linux mit `apt`
 - Docker-Daemon laufend
-- `unzip`, `nodejs`, `npm`, `python3-pip` (für VTPK → PMTiles Konvertierung)
+- `unzip`, `nodejs`, `npm`, `python3-venv` (für VTPK → PMTiles Konvertierung)
 
 ## Verzeichnisse
 

@@ -20,9 +20,15 @@ OUT_META="${OUT_META:-$TMP/metadaten.json}"
 CLEANUP="${CLEANUP:-1}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_DIR="${VENV_DIR:-/srv/scripts/venv}"
+PYTHON_BIN="${PYTHON_BIN:-$VENV_DIR/bin/python}"
 
 command -v unzip >/dev/null 2>&1 || { echo "❌ unzip fehlt"; exit 1; }
-command -v python3 >/dev/null 2>&1 || { echo "❌ python3 fehlt"; exit 1; }
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  echo "❌ Python venv fehlt: $PYTHON_BIN"
+  echo "Bitte zuerst scripts/setup.sh ausführen."
+  exit 1
+fi
 
 mkdir -p "$TMP"
 
@@ -53,7 +59,7 @@ fi
 # -------------------------------------------------------------------
 echo "🧠 Extrahiere .bundle Tiles -> PMTiles"
 
-python3 "$SCRIPT_DIR/vtpk_bundle_to_pmtiles.py" \
+"$PYTHON_BIN" "$SCRIPT_DIR/vtpk_bundle_to_pmtiles.py" \
   --tiles "$P12_DIR/tile" \
   --output "$OUT_PMTILES"
 
@@ -62,7 +68,7 @@ python3 "$SCRIPT_DIR/vtpk_bundle_to_pmtiles.py" \
 # -------------------------------------------------------------------
 echo "🧾 Erzeuge metadaten.json"
 
-python3 "$SCRIPT_DIR/fix_metadata_json.py" \
+"$PYTHON_BIN" "$SCRIPT_DIR/fix_metadata_json.py" \
   --input "$P12_DIR/metadata.json" \
   --output "$OUT_META"
 
