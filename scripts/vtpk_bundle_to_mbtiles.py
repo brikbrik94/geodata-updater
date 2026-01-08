@@ -36,32 +36,36 @@ def u32(buffer: bytes, offset: int) -> int:
 
 
 def iter_tiles(bundle: Path):
-    data = bundle.read_bytes()
-    if len(data) < 64 + 8 * 16384:
-        return
+    with bundle.open("rb") as handle:
+        header = handle.read(64)
+        idx = handle.read(8 * 16384)
+        if len(header) < 64 or len(idx) < 8 * 16384:
+            return
 
-    idx = data[64:64 + 8 * 16384]
-    payload = memoryview(data)[64 + 8 * 16384:]
+        payload_start = 64 + 8 * 16384
 
-    sane = 0
-    for i in range(0, min(1600, len(idx)), 8):
-        off = u32(idx, i)
-        sz = u32(idx, i + 4)
-        if off and sz and off + sz <= len(payload):
-            sane += 1
-    mode_a = sane >= 20
-
-    for tile_index in range(16384):
-        i = tile_index * 8
-        if mode_a:
+        sane = 0
+        for i in range(0, min(1600, len(idx)), 8):
             off = u32(idx, i)
             sz = u32(idx, i + 4)
-        else:
-            off = int.from_bytes(idx[i:i + 5], "little")
-            sz = int.from_bytes(idx[i + 5:i + 8], "little")
+            if off and sz:
+                sane += 1
+        mode_a = sane >= 20
 
-        if off and sz and off + sz <= len(payload):
-            yield tile_index, payload[off:off + sz].tobytes()
+        for tile_index in range(16384):
+            i = tile_index * 8
+            if mode_a:
+                off = u32(idx, i)
+                sz = u32(idx, i + 4)
+            else:
+                off = int.from_bytes(idx[i:i + 5], "little")
+                sz = int.from_bytes(idx[i + 5:i + 8], "little")
+
+            if off and sz:
+                handle.seek(payload_start + off)
+                blob = handle.read(sz)
+                if len(blob) == sz:
+                    yield tile_index, blob
 
 
 def main() -> None:
