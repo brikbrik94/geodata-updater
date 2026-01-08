@@ -92,7 +92,7 @@ fi
 # 3. PMTiles erstellen
 if [ "$SKIP_PMTILES" -eq 0 ]; then
     log "Schritt 3/4: PMTiles Generierung starte..."
-    if ! /srv/scripts/create_pmtiles.sh >> "$LOGFILE" 2>&1; then
+if ! /srv/scripts/convert_osm_pmtiles.sh >> "$LOGFILE" 2>&1; then
         log "❌ FEHLER bei Planetiler. Abbruch."
         exit 1
     fi

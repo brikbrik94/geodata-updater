@@ -53,6 +53,17 @@ Der Download erfolgt nur, wenn die Datei noch nicht vorhanden ist. Ein erneuter
 Download kann über `FORCE_DOWNLOAD=1` erzwungen werden. Zielpfad:
 `/srv/build/basemap-at-contours/src/bmapvhl_vtpk_3857.vtpk` (anpassbar via `CONTOURS_OUTPUT_DIR`).
 
+### basemap.at VTPK → PMTiles (Konvertierung)
+
+Für die Konvertierung gibt es zwei separate Scripts:
+
+- `scripts/convert_basemap_at_pmtiles.sh`
+- `scripts/convert_basemap_contours_pmtiles.sh`
+
+Beide erwarten eine vorhandene VTPK-Datei unter `/srv/build/<tileset>/src` und
+nutzen `/srv/build/<tileset>/tmp` als Arbeitsverzeichnis. Der eigentliche
+Konvertierungsbefehl wird über `CONVERT_CMD` übergeben.
+
 ### style.json (PMTiles Stylesheet)
 
 Lege dein `style.json` unter `styles/style.json` im Repo ab. Beim Installieren

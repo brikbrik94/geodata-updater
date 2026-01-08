@@ -7,13 +7,11 @@ INPUT_FILENAME="complete_map.osm.pbf"
 TILESET_ID="${TILESET_ID:-osm}"
 STYLE_ID="${STYLE_ID:-$TILESET_ID}"
 BUILD_BASE="/srv/build/$TILESET_ID"
-BUILD_DIR="$BUILD_BASE/tmp/out"
+BUILD_DIR="$BUILD_BASE/tmp"
 SOURCES_DIR="$BUILD_BASE/tmp/sources"
-SERVE_DIR="/srv/tiles/$TILESET_ID/pmtiles"
-STYLE_DIR="/srv/tiles/$TILESET_ID/styles/$STYLE_ID"
-STYLE_FILE="$STYLE_DIR/style.json"
+SERVE_DIR="$BUILD_BASE/tmp"
 STATS_DIR="/srv/scripts/stats"
-INFO_JSON="/srv/tiles/$TILESET_ID/tilejson/${TILESET_ID}.json"
+INFO_JSON="$BUILD_BASE/tmp/${TILESET_ID}.json"
 FILENAME="at-plus.pmtiles"
 DOCKER_IMAGE="ghcr.io/onthegomap/planetiler:latest"
 DEBUG_LOG="/srv/scripts/planetiler_raw_debug.log"
@@ -41,7 +39,7 @@ fi
 if ! systemctl is-active --quiet docker; then echo "❌ FEHLER: Docker läuft nicht."; exit 1; fi
 if [ ! -f "$INPUT_PBF" ]; then echo "❌ FEHLER: Input-Datei $INPUT_PBF nicht gefunden."; exit 1; fi
 
-mkdir -p "$BUILD_DIR" "$SOURCES_DIR" "$SERVE_DIR" "$STATS_DIR" "$STYLE_DIR" "$(dirname "$INFO_JSON")"
+mkdir -p "$BUILD_DIR" "$SOURCES_DIR" "$SERVE_DIR" "$STATS_DIR" "$(dirname "$INFO_JSON")"
 if ! groups | grep -qw docker && [ "$USE_SUDO" -ne 1 ]; then
     echo "❌ FEHLER: Benutzer ist nicht in der docker-Gruppe. Setze USE_SUDO=1 oder füge den User zur docker-Gruppe hinzu."
     exit 1
@@ -88,13 +86,9 @@ if [ $EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-# --- DEPLOYMENT ---
-mv "$BUILD_DIR/$FILENAME" "$SERVE_DIR/$FILENAME"
-chmod 644 "$SERVE_DIR/$FILENAME"
-
 # --- INFO.JSON UPDATE ---
 CURRENT_DATE=$(date +%Y-%m-%d)
-FILE_SIZE=$(stat -c%s "$SERVE_DIR/$FILENAME")
+FILE_SIZE=$(stat -c%s "$BUILD_DIR/$FILENAME")
 HOST_NAME=$(hostname)
 
 cat <<EOF > "$INFO_JSON"
@@ -104,16 +98,10 @@ cat <<EOF > "$INFO_JSON"
   "dataset_date": "$CURRENT_DATE",
   "maxzoom": 14,
   "pmtiles_file": "$FILENAME",
-  "pmtiles_path": "$SERVE_DIR/$FILENAME",
+  "pmtiles_path": "$BUILD_DIR/$FILENAME",
   "pmtiles_size_bytes": $FILE_SIZE,
   "built_from_host": "$HOST_NAME",
   "attribution": "© OpenMapTiles © OpenStreetMap contributors"
 }
 EOF
 chmod 644 "$INFO_JSON"
-
-if [ ! -f "$STYLE_FILE" ]; then
-    echo "❌ FEHLER: style.json nicht gefunden: $STYLE_FILE"
-    echo "Lege die Datei dort ab (z.B. via install.sh, Quelle: styles/style.json)."
-    exit 1
-fi
