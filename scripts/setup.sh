@@ -39,7 +39,7 @@ fi
 # 1. Abhängigkeiten prüfen/installieren
 echo "[1] Installiere System-Pakete..."
 sudo apt-get update
-sudo apt-get install -y osmium-tool wget python3 docker.io docker-cli acl
+sudo apt-get install -y osmium-tool wget python3 docker.io docker-cli acl unzip nodejs npm
 
 # 2. Ordnerstruktur erstellen
 echo "[2] Erstelle Ordnerstruktur in /srv..."

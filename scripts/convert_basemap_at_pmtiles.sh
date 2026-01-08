@@ -1,30 +1,93 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
-VTPK_PATH="${VTPK_PATH:-/srv/build/basemap-at/src/bmapv_vtpk_3857.vtpk}"
-OUTPUT_PM="${OUTPUT_PM:-/srv/tiles/basemap-at/pmtiles/basemap-at.pmtiles}"
-TMP_DIR="${TMP_DIR:-/srv/build/basemap-at/tmp}"
-CONVERT_CMD="${CONVERT_CMD:-}"
+echo "== basemap.at VTPK -> PMTiles =="
 
-mkdir -p "$TMP_DIR" "$(dirname "$OUTPUT_PM")"
+# -------------------------------------------------------------------
+# Pfade
+# -------------------------------------------------------------------
+BASE="${BASE:-/srv/build/basemap-at}"
+SRC="${SRC:-$BASE/src}"
+TMP="${TMP:-$BASE/tmp}"
 
-if [ ! -f "$VTPK_PATH" ]; then
-    echo "❌ FEHLER: VTPK-Datei nicht gefunden: $VTPK_PATH"
-    exit 1
+VTPK="${VTPK:-$SRC/bmapv_vtpk_3857.vtpk}"
+RAW_DIR="${RAW_DIR:-$SRC/vtpk_raw}"
+P12_DIR="${P12_DIR:-$RAW_DIR/p12}"
+
+OUT_MBTILES="${OUT_MBTILES:-$TMP/basemap-at.mbtiles}"
+OUT_PMTILES="${OUT_PMTILES:-$TMP/basemap-at.pmtiles}"
+OUT_META="${OUT_META:-$TMP/metadaten.json}"
+
+PMTILES_JS="${PMTILES_JS:-/usr/local/lib/node_modules/pmtiles/dist/pmtiles.js}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+command -v unzip >/dev/null 2>&1 || { echo "❌ unzip fehlt"; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo "❌ python3 fehlt"; exit 1; }
+command -v node >/dev/null 2>&1 || { echo "❌ node fehlt"; exit 1; }
+
+mkdir -p "$TMP"
+
+# -------------------------------------------------------------------
+# 0) VTPK entpacken (falls noch nicht passiert)
+# -------------------------------------------------------------------
+if [[ -d "$P12_DIR" && -f "$P12_DIR/root.json" && -d "$P12_DIR/tile" ]]; then
+  echo "✅ VTPK bereits entpackt: $P12_DIR"
+else
+  echo "📦 Entpacke VTPK -> $RAW_DIR"
+  if [[ ! -f "$VTPK" ]]; then
+    echo "❌ VTPK nicht gefunden: $VTPK"
+    exit 2
+  fi
+  rm -rf "$RAW_DIR"
+  mkdir -p "$RAW_DIR"
+  unzip -q "$VTPK" -d "$RAW_DIR"
+
+  if [[ ! -d "$P12_DIR" ]]; then
+    echo "❌ p12 Ordner nicht gefunden nach unzip"
+    find "$RAW_DIR" -maxdepth 3 -type d
+    exit 3
+  fi
 fi
 
-if [ -z "$CONVERT_CMD" ]; then
-    cat <<EOM
-❌ FEHLER: Kein Konvertierungsbefehl definiert.
+# -------------------------------------------------------------------
+# 1) Esri CompactV2 (.bundle) -> MBTiles (OOM-sicher, streaming)
+# -------------------------------------------------------------------
+echo "🧠 Extrahiere .bundle Tiles -> MBTiles"
 
-Setze CONVERT_CMD, um die VTPK→PMTiles-Konvertierung zu starten.
-Beispiel:
-  CONVERT_CMD='vtpk-to-pmtiles "$VTPK_PATH" "$OUTPUT_PM" --tmp "$TMP_DIR"'
-EOM
-    exit 1
+python3 "$SCRIPT_DIR/vtpk_bundle_to_mbtiles.py" \
+  --tiles "$P12_DIR/tile" \
+  --output "$OUT_MBTILES"
+
+# -------------------------------------------------------------------
+# 2) metadata.json robust reparieren
+# -------------------------------------------------------------------
+echo "🧾 Erzeuge metadaten.json"
+
+python3 "$SCRIPT_DIR/fix_metadata_json.py" \
+  --input "$P12_DIR/metadata.json" \
+  --output "$OUT_META"
+
+# -------------------------------------------------------------------
+# 3) MBTiles -> PMTiles (direkt über node)
+# -------------------------------------------------------------------
+echo "🧱 Konvertiere MBTiles -> PMTiles"
+
+if [[ ! -f "$PMTILES_JS" ]]; then
+  echo "❌ pmtiles.js nicht gefunden: $PMTILES_JS"
+  exit 4
 fi
 
-echo "Starte VTPK→PMTiles Konvertierung (basemap-at)..."
-bash -lc "$CONVERT_CMD"
+rm -f "$OUT_PMTILES"
 
-echo "✓ PMTiles erstellt: $OUTPUT_PM"
+node "$PMTILES_JS" convert "$OUT_MBTILES" "$OUT_PMTILES"
+
+if [[ ! -f "$OUT_PMTILES" ]]; then
+  echo "❌ pmtiles convert lief durch, aber Output fehlt"
+  exit 5
+fi
+
+echo "✅ Fertig"
+echo " - PMTiles : $OUT_PMTILES"
+echo " - MBTiles : $OUT_MBTILES"
+echo " - Metadata: $OUT_META"
