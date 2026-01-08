@@ -138,6 +138,8 @@ def main() -> None:
 
     pmtiles = importlib.import_module("pmtiles")
     writer_module = importlib.import_module("pmtiles.writer")
+    tile_module = importlib.import_module("pmtiles.tile")
+    zxy_to_tileid = getattr(tile_module, "zxy_to_tileid", None)
 
     if hasattr(writer_module, "Writer"):
         Writer = writer_module.Writer
@@ -165,31 +167,24 @@ def main() -> None:
         }
 
         def write_tile(z, x, y, data):
-            if hasattr(writer, "write_tile"):
+            def call_with_sig(method):
                 try:
-                    sig = inspect.signature(writer.write_tile)
-                    params = len(sig.parameters)
+                    sig = inspect.signature(method)
+                    params = [p.name for p in sig.parameters.values() if p.name != "self"]
                 except (TypeError, ValueError):
-                    params = 0
-                if params <= 3:
-                    writer.write_tile((z, x, y), data)
-                elif params == 4:
-                    writer.write_tile(z, x, y, data)
+                    params = []
+                if len(params) == 2 and params[0] in {"tile_id", "tileid", "id"} and zxy_to_tileid:
+                    method(zxy_to_tileid(z, x, y), data)
+                elif len(params) >= 4:
+                    method(z, x, y, data)
                 else:
-                    writer.write_tile(z, x, y, data)
+                    method((z, x, y), data)
+
+            if hasattr(writer, "write_tile"):
+                call_with_sig(writer.write_tile)
                 return
             if hasattr(writer, "write"):
-                try:
-                    sig = inspect.signature(writer.write)
-                    params = len(sig.parameters)
-                except (TypeError, ValueError):
-                    params = 0
-                if params <= 3:
-                    writer.write((z, x, y), data)
-                elif params == 4:
-                    writer.write(z, x, y, data)
-                else:
-                    writer.write(z, x, y, data)
+                call_with_sig(writer.write)
                 return
             raise RuntimeError("PMTiles writer method not found")
 
