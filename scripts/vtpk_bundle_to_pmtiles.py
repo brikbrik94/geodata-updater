@@ -89,7 +89,7 @@ def set_header_value(header, key, value) -> None:
             setattr(header, key, value)
 
 
-def build_header(writer_module, stats):
+def build_header(writer_module, tile_module, stats):
     header_cls = getattr(writer_module, "Header", None)
     try:
         header = header_cls() if header_cls else {}
@@ -98,10 +98,14 @@ def build_header(writer_module, stats):
 
     tile_type = None
     tile_type_enum = getattr(writer_module, "TileType", None)
+    if tile_type_enum is None and tile_module is not None:
+        tile_type_enum = getattr(tile_module, "TileType", None)
     if tile_type_enum is not None and hasattr(tile_type_enum, "MVT"):
         tile_type = tile_type_enum.MVT
     compression = None
     compression_enum = getattr(writer_module, "Compression", None)
+    if compression_enum is None and tile_module is not None:
+        compression_enum = getattr(tile_module, "Compression", None)
     if compression_enum is not None and stats["compression"] is not None:
         compression_name = stats["compression"].upper()
         if hasattr(compression_enum, compression_name):
@@ -229,10 +233,10 @@ def main() -> None:
             except (TypeError, ValueError):
                 params = 0
             if params >= 2:
-                header = build_header(writer_module, stats)
+                header = build_header(writer_module, tile_module, stats)
                 writer.finalize(header, {})
             elif params == 1:
-                header = build_header(writer_module, stats)
+                header = build_header(writer_module, tile_module, stats)
                 writer.finalize(header)
             else:
                 writer.finalize()
