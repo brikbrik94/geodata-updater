@@ -96,9 +96,12 @@ def main() -> None:
 
         def write_tile(z, x, y, data):
             if hasattr(writer, "write_tile"):
-                sig = inspect.signature(writer.write_tile)
-                params = len(sig.parameters)
-                if params == 3:
+                try:
+                    sig = inspect.signature(writer.write_tile)
+                    params = len(sig.parameters)
+                except (TypeError, ValueError):
+                    params = 0
+                if params <= 3:
                     writer.write_tile((z, x, y), data)
                 elif params == 4:
                     writer.write_tile(z, x, y, data)
@@ -106,9 +109,12 @@ def main() -> None:
                     writer.write_tile(z, x, y, data)
                 return
             if hasattr(writer, "write"):
-                sig = inspect.signature(writer.write)
-                params = len(sig.parameters)
-                if params == 3:
+                try:
+                    sig = inspect.signature(writer.write)
+                    params = len(sig.parameters)
+                except (TypeError, ValueError):
+                    params = 0
+                if params <= 3:
                     writer.write((z, x, y), data)
                 elif params == 4:
                     writer.write(z, x, y, data)
