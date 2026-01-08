@@ -5,7 +5,7 @@ set -euo pipefail
 # Pfad zur Datei mit den Links
 INPUT_FILE="/srv/scripts/links.txt"
 # Zielordner für die Downloads
-OUTPUT_DIR="/srv/osm/parts"
+OUTPUT_DIR="/srv/build/osm/src"
 # Name der Datei, welche die Pfade der Downloads speichert
 LIST_FILE="$OUTPUT_DIR/file_list.txt"
 UPDATED_FLAG="$OUTPUT_DIR/updated.flag"
