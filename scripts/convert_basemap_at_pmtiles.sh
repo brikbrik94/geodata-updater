@@ -15,7 +15,10 @@ RAW_DIR="${RAW_DIR:-$TMP/vtpk_extract}"
 
 OUT_PMTILES="${OUT_PMTILES:-$TMP/basemap-at.pmtiles}"
 OUT_MBTILES="${OUT_MBTILES:-$TMP/basemap-at.mbtiles}"
-OUT_META_DIR="${OUT_META_DIR:-$TMP/vtpk_meta}"
+OUT_META_DIR="${OUT_META_DIR:-$TMP/metadata}"
+INFO_JSON="${INFO_JSON:-$TMP/basemap-at.json}"
+MAXZOOM="${MAXZOOM:-}"
+ATTRIBUTION="${ATTRIBUTION:-© basemap.at}"
 
 CLEANUP="${CLEANUP:-1}"
 TOOLS_DIR="${TOOLS_DIR:-$TMP/tools}"
@@ -85,8 +88,9 @@ mkdir -p "$OUT_META_DIR"
 if [[ -f "$RAW_DIR/p12/root.json" ]]; then
   cp -f "$RAW_DIR/p12/root.json" "$OUT_META_DIR/root.json"
 fi
-if [[ -f "$RAW_DIR/p12/resources/styles/root.json" ]]; then
-  cp -f "$RAW_DIR/p12/resources/styles/root.json" "$OUT_META_DIR/styles-root.json"
+if [[ -d "$RAW_DIR/p12/resources/styles" ]]; then
+  mkdir -p "$OUT_META_DIR/styles"
+  cp -a "$RAW_DIR/p12/resources/styles/." "$OUT_META_DIR/styles/"
 fi
 if [[ -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" ]]; then
   cp -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" "$OUT_META_DIR/iteminfo.xml"
@@ -106,6 +110,43 @@ if [[ ! -f "$OUT_PMTILES" ]]; then
   echo "❌ PMTiles Output fehlt"
   exit 5
 fi
+
+CURRENT_DATE=$(date +%Y-%m-%d)
+FILE_SIZE=$(stat -c%s "$OUT_PMTILES")
+HOST_NAME=$(hostname)
+VTPK_FILENAME=$(basename "$VTPK")
+PMTILES_FILENAME=$(basename "$OUT_PMTILES")
+if [[ -z "$MAXZOOM" && -f "$OUT_META_DIR/root.json" ]]; then
+  MAXZOOM=$(python3 - <<'PY'
+import json
+import pathlib
+root = pathlib.Path("'"$OUT_META_DIR"'") / "root.json"
+try:
+    data = json.loads(root.read_text(encoding="utf-8"))
+    value = data.get("maxzoom")
+    if isinstance(value, int):
+        print(value)
+except Exception:
+    pass
+PY
+)
+fi
+MAXZOOM="${MAXZOOM:-14}"
+
+cat <<EOF > "$INFO_JSON"
+{
+  "name": "basemap.at (PMTiles)",
+  "source_vtpk": "$VTPK_FILENAME",
+  "dataset_date": "$CURRENT_DATE",
+  "maxzoom": $MAXZOOM,
+  "pmtiles_file": "$PMTILES_FILENAME",
+  "pmtiles_path": "$OUT_PMTILES",
+  "pmtiles_size_bytes": $FILE_SIZE,
+  "built_from_host": "$HOST_NAME",
+  "attribution": "$ATTRIBUTION"
+}
+EOF
+chmod 644 "$INFO_JSON"
 
 echo "✅ Fertig"
 echo " - PMTiles : $OUT_PMTILES"
