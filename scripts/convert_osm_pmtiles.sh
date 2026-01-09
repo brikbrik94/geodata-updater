@@ -58,7 +58,7 @@ if [ "$USE_SUDO" -eq 1 ]; then
 fi
 
 $DOCKER_CMD run --rm \
-  -v /srv/osm/merged:/in:ro \
+  -v /srv/build/osm/merged:/in:ro \
   -v "$BUILD_DIR":/out \
   -v "$SOURCES_DIR":/data/sources \
   "$DOCKER_IMAGE" \
