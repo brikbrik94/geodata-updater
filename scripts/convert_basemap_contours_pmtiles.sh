@@ -117,10 +117,11 @@ HOST_NAME=$(hostname)
 VTPK_FILENAME=$(basename "$VTPK")
 PMTILES_FILENAME=$(basename "$OUT_PMTILES")
 if [[ -z "$MAXZOOM" && -f "$OUT_META_DIR/root.json" ]]; then
-  MAXZOOM=$(python3 - <<'PY'
+  MAXZOOM=$(OUT_META_DIR="$OUT_META_DIR" python3 - <<'PY'
 import json
+import os
 import pathlib
-root = pathlib.Path("'"$OUT_META_DIR"'") / "root.json"
+root = pathlib.Path(os.environ["OUT_META_DIR"]) / "root.json"
 try:
     data = json.loads(root.read_text(encoding="utf-8"))
     value = data.get("maxzoom")
