@@ -30,6 +30,27 @@ Die Einzelschritte können auch separat getestet werden:
 /srv/scripts/run_pmtiles.sh
 ```
 
+Deployment der PMTiles (ersetzt vorhandene Dateien durch die neuen Builds):
+
+```bash
+/srv/scripts/deploy_pmtiles.sh
+```
+
+Deployment der Stylesheets:
+
+```bash
+/srv/scripts/deploy_stylesheets.sh
+```
+
+Alles in einem Schritt (inkl. Info-Datei):
+
+```bash
+/srv/scripts/deploy_all.sh
+```
+
+Die Info-Datei wird standardmäßig nach `/srv/tiles/deploy_info.json` geschrieben
+und kann über `INFO_OUTPUT` sowie `TILES_BASE_URL` angepasst werden.
+
 Optionaler ORS-Graphenbuild:
 
 ```bash
