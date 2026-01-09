@@ -15,6 +15,7 @@ RAW_DIR="${RAW_DIR:-$TMP/vtpk_extract}"
 
 OUT_PMTILES="${OUT_PMTILES:-$TMP/basemap-at.pmtiles}"
 OUT_MBTILES="${OUT_MBTILES:-$TMP/basemap-at.mbtiles}"
+OUT_META_DIR="${OUT_META_DIR:-$TMP/vtpk_meta}"
 
 CLEANUP="${CLEANUP:-1}"
 TOOLS_DIR="${TOOLS_DIR:-$TMP/tools}"
@@ -79,6 +80,18 @@ fi
 # -------------------------------------------------------------------
 # 3) VTPK -> MBTiles -> PMTiles
 # -------------------------------------------------------------------
+echo "🧾 Kopiere VTPK Metadaten"
+mkdir -p "$OUT_META_DIR"
+if [[ -f "$RAW_DIR/p12/root.json" ]]; then
+  cp -f "$RAW_DIR/p12/root.json" "$OUT_META_DIR/root.json"
+fi
+if [[ -f "$RAW_DIR/p12/resources/styles/root.json" ]]; then
+  cp -f "$RAW_DIR/p12/resources/styles/root.json" "$OUT_META_DIR/styles-root.json"
+fi
+if [[ -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" ]]; then
+  cp -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" "$OUT_META_DIR/iteminfo.xml"
+fi
+
 if [[ ! -f "$OUT_MBTILES" ]]; then
   echo "🧱 Erzeuge MBTiles"
   "$TOOLS_DIR/vtpk2mbtiles" "$RAW_DIR" "$OUT_MBTILES" false
