@@ -19,6 +19,14 @@ elif [[ -d "$METADATA_DIR" ]]; then
   echo "ℹ️ Verwende Stylesheets aus $STYLES_SOURCE_DIR"
 fi
 
+if [[ -d "$METADATA_DIR/styles" ]]; then
+  STYLES_SOURCE_DIR="$METADATA_DIR/styles"
+  echo "ℹ️ Verwende Stylesheets aus $STYLES_SOURCE_DIR"
+elif [[ -d "$METADATA_DIR" ]]; then
+  STYLES_SOURCE_DIR="$METADATA_DIR"
+  echo "ℹ️ Verwende Stylesheets aus $STYLES_SOURCE_DIR"
+fi
+
 if [[ ! -d "$STYLES_SOURCE_DIR" ]]; then
   echo "❌ Stylesheet-Verzeichnis nicht gefunden: $STYLES_SOURCE_DIR"
   exit 1
