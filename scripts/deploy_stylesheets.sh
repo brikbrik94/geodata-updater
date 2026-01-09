@@ -19,14 +19,6 @@ elif [[ -d "$METADATA_DIR" ]]; then
   echo "ℹ️ Verwende Stylesheets aus $STYLES_SOURCE_DIR"
 fi
 
-if [[ -d "$METADATA_DIR/styles" ]]; then
-  STYLES_SOURCE_DIR="$METADATA_DIR/styles"
-  echo "ℹ️ Verwende Stylesheets aus $STYLES_SOURCE_DIR"
-elif [[ -d "$METADATA_DIR" ]]; then
-  STYLES_SOURCE_DIR="$METADATA_DIR"
-  echo "ℹ️ Verwende Stylesheets aus $STYLES_SOURCE_DIR"
-fi
-
 if [[ ! -d "$STYLES_SOURCE_DIR" ]]; then
   echo "❌ Stylesheet-Verzeichnis nicht gefunden: $STYLES_SOURCE_DIR"
   exit 1
@@ -39,6 +31,15 @@ if [[ -f "$STYLES_SOURCE_DIR/style.json" ]]; then
   mkdir -p "$dest_dir"
   echo "📦 Deploye $STYLES_SOURCE_DIR/style.json -> $dest_dir/style.json"
   cp -f "$STYLES_SOURCE_DIR/style.json" "$dest_dir/style.json"
+  chmod 644 "$dest_dir/style.json"
+  copied=$((copied + 1))
+fi
+
+if [[ -f "$STYLES_SOURCE_DIR/root.json" ]]; then
+  dest_dir="$TILES_DIR/$TILESET_ID/styles/$STYLE_ID"
+  mkdir -p "$dest_dir"
+  echo "📦 Deploye $STYLES_SOURCE_DIR/root.json -> $dest_dir/style.json"
+  cp -f "$STYLES_SOURCE_DIR/root.json" "$dest_dir/style.json"
   chmod 644 "$dest_dir/style.json"
   copied=$((copied + 1))
 fi
