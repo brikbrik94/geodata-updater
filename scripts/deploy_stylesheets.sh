@@ -4,10 +4,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-STYLES_SOURCE_DIR="${STYLES_SOURCE_DIR:-$REPO_ROOT/styles}"
 TILES_DIR="${TILES_DIR:-/srv/tiles}"
 TILESET_ID="${TILESET_ID:-osm}"
 STYLE_ID="${STYLE_ID:-$TILESET_ID}"
+STYLES_SOURCE_DIR="${STYLES_SOURCE_DIR:-$REPO_ROOT/styles}"
+TMP_DIR="${TMP_DIR:-/srv/build/$TILESET_ID/tmp}"
+METADATA_DIR="${METADATA_DIR:-$TMP_DIR/metadata}"
+
+if [[ -d "$METADATA_DIR/styles" ]]; then
+  STYLES_SOURCE_DIR="$METADATA_DIR/styles"
+  echo "ℹ️ Verwende Stylesheets aus $STYLES_SOURCE_DIR"
+elif [[ -d "$METADATA_DIR" ]]; then
+  STYLES_SOURCE_DIR="$METADATA_DIR"
+  echo "ℹ️ Verwende Stylesheets aus $STYLES_SOURCE_DIR"
+fi
 
 if [[ ! -d "$STYLES_SOURCE_DIR" ]]; then
   echo "❌ Stylesheet-Verzeichnis nicht gefunden: $STYLES_SOURCE_DIR"
@@ -21,6 +31,15 @@ if [[ -f "$STYLES_SOURCE_DIR/style.json" ]]; then
   mkdir -p "$dest_dir"
   echo "📦 Deploye $STYLES_SOURCE_DIR/style.json -> $dest_dir/style.json"
   cp -f "$STYLES_SOURCE_DIR/style.json" "$dest_dir/style.json"
+  chmod 644 "$dest_dir/style.json"
+  copied=$((copied + 1))
+fi
+
+if [[ -f "$STYLES_SOURCE_DIR/root.json" ]]; then
+  dest_dir="$TILES_DIR/$TILESET_ID/styles/$STYLE_ID"
+  mkdir -p "$dest_dir"
+  echo "📦 Deploye $STYLES_SOURCE_DIR/root.json -> $dest_dir/style.json"
+  cp -f "$STYLES_SOURCE_DIR/root.json" "$dest_dir/style.json"
   chmod 644 "$dest_dir/style.json"
   copied=$((copied + 1))
 fi
