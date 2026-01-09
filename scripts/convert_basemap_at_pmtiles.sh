@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "== basemap.at VTPK -> PMTiles =="
+echo "== basemap.at VTPK -> PMTiles (vtpk2mbtiles) =="
 
 # -------------------------------------------------------------------
 # Pfade
@@ -11,32 +11,60 @@ SRC="${SRC:-$BASE/src}"
 TMP="${TMP:-$BASE/tmp}"
 
 VTPK="${VTPK:-$SRC/bmapv_vtpk_3857.vtpk}"
-RAW_DIR="${RAW_DIR:-$SRC/vtpk_raw}"
-P12_DIR="${P12_DIR:-$RAW_DIR/p12}"
+RAW_DIR="${RAW_DIR:-$TMP/vtpk_extract}"
 
 OUT_PMTILES="${OUT_PMTILES:-$TMP/basemap-at.pmtiles}"
-OUT_META="${OUT_META:-$TMP/metadaten.json}"
+OUT_MBTILES="${OUT_MBTILES:-$TMP/basemap-at.mbtiles}"
 
 CLEANUP="${CLEANUP:-1}"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="${VENV_DIR:-/srv/scripts/venv}"
-PYTHON_BIN="${PYTHON_BIN:-$VENV_DIR/bin/python}"
+TOOLS_DIR="${TOOLS_DIR:-$TMP/tools}"
+VTPK2MBTILES_URL="${VTPK2MBTILES_URL:-https://github.com/BergWerkGIS/vtpk2mbtiles/releases/download/v0.0.0.2/vtpk2mbtiles-linux-x64-v0.0.0.2.zip}"
+PMTILES_VERSION="${PMTILES_VERSION:-1.22.1}"
+PMTILES_URL="${PMTILES_URL:-https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz}"
 
 command -v unzip >/dev/null 2>&1 || { echo "❌ unzip fehlt"; exit 1; }
-if [[ ! -x "$PYTHON_BIN" ]]; then
-  echo "❌ Python venv fehlt: $PYTHON_BIN"
-  echo "Bitte zuerst scripts/setup.sh ausführen."
-  exit 1
-fi
 
 mkdir -p "$TMP"
 
 # -------------------------------------------------------------------
-# 0) VTPK entpacken (falls noch nicht passiert)
+# 1) Tools vorbereiten
 # -------------------------------------------------------------------
-if [[ -d "$P12_DIR" && -f "$P12_DIR/root.json" && -d "$P12_DIR/tile" ]]; then
-  echo "✅ VTPK bereits entpackt: $P12_DIR"
+export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+
+mkdir -p "$TOOLS_DIR"
+
+if [[ ! -x "$TOOLS_DIR/vtpk2mbtiles" ]]; then
+  echo "⬇️ Lade vtpk2mbtiles"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$VTPK2MBTILES_URL" -o "$TOOLS_DIR/vtpk2mbtiles.zip"
+  else
+    wget -q "$VTPK2MBTILES_URL" -O "$TOOLS_DIR/vtpk2mbtiles.zip"
+  fi
+  unzip -q "$TOOLS_DIR/vtpk2mbtiles.zip" -d "$TOOLS_DIR"
+  rm -f "$TOOLS_DIR/vtpk2mbtiles.zip"
+  chmod +x "$TOOLS_DIR/vtpk2mbtiles"
+fi
+
+if [[ ! -x "$TOOLS_DIR/pmtiles" ]]; then
+  echo "⬇️ Lade pmtiles"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$PMTILES_URL" -o "$TOOLS_DIR/pmtiles.tar.gz"
+  else
+    wget -q "$PMTILES_URL" -O "$TOOLS_DIR/pmtiles.tar.gz"
+  fi
+  tar -xzf "$TOOLS_DIR/pmtiles.tar.gz" -C "$TOOLS_DIR"
+  rm -f "$TOOLS_DIR/pmtiles.tar.gz"
+  if [[ -f "$TOOLS_DIR/go-pmtiles" ]]; then
+    mv "$TOOLS_DIR/go-pmtiles" "$TOOLS_DIR/pmtiles"
+  fi
+  chmod +x "$TOOLS_DIR/pmtiles"
+fi
+
+# -------------------------------------------------------------------
+# 2) VTPK entpacken
+# -------------------------------------------------------------------
+if [[ -d "$RAW_DIR" ]]; then
+  echo "✅ VTPK bereits entpackt: $RAW_DIR"
 else
   echo "📦 Entpacke VTPK -> $RAW_DIR"
   if [[ ! -f "$VTPK" ]]; then
@@ -46,31 +74,20 @@ else
   rm -rf "$RAW_DIR"
   mkdir -p "$RAW_DIR"
   unzip -q "$VTPK" -d "$RAW_DIR"
-
-  if [[ ! -d "$P12_DIR" ]]; then
-    echo "❌ p12 Ordner nicht gefunden nach unzip"
-    find "$RAW_DIR" -maxdepth 3 -type d
-    exit 3
-  fi
 fi
 
 # -------------------------------------------------------------------
-# 1) Esri CompactV2 (.bundle) -> PMTiles (streaming)
+# 3) VTPK -> MBTiles -> PMTiles
 # -------------------------------------------------------------------
-echo "🧠 Extrahiere .bundle Tiles -> PMTiles"
+if [[ ! -f "$OUT_MBTILES" ]]; then
+  echo "🧱 Erzeuge MBTiles"
+  "$TOOLS_DIR/vtpk2mbtiles" "$RAW_DIR" "$OUT_MBTILES" false
+else
+  echo "ℹ️ MBTiles bereits vorhanden: $OUT_MBTILES"
+fi
 
-"$PYTHON_BIN" "$SCRIPT_DIR/vtpk_bundle_to_pmtiles.py" \
-  --tiles "$P12_DIR/tile" \
-  --output "$OUT_PMTILES"
-
-# -------------------------------------------------------------------
-# 2) metadata.json robust reparieren
-# -------------------------------------------------------------------
-echo "🧾 Erzeuge metadaten.json"
-
-"$PYTHON_BIN" "$SCRIPT_DIR/fix_metadata_json.py" \
-  --input "$P12_DIR/metadata.json" \
-  --output "$OUT_META"
+echo "🧠 Erzeuge PMTiles"
+"$TOOLS_DIR/pmtiles" convert "$OUT_MBTILES" "$OUT_PMTILES"
 
 if [[ ! -f "$OUT_PMTILES" ]]; then
   echo "❌ PMTiles Output fehlt"
@@ -79,9 +96,9 @@ fi
 
 echo "✅ Fertig"
 echo " - PMTiles : $OUT_PMTILES"
-echo " - Metadata: $OUT_META"
 
 if [[ "$CLEANUP" == "1" ]]; then
   echo "🧹 Räume temporäre Dateien auf"
   rm -rf "$RAW_DIR"
+  rm -f "$OUT_MBTILES"
 fi
