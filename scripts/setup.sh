@@ -49,7 +49,7 @@ sudo "$VENV_DIR/bin/pip" install --upgrade pip pmtiles
 
 if ! command -v spreet >/dev/null 2>&1; then
     echo "[1] Installiere spreet..."
-    sudo env GOBIN=/usr/local/bin go install "github.com/flopp/spreet@${SPREET_VERSION}"
+    sudo env GOBIN=/usr/local/bin go install "github.com/flother/spreet@${SPREET_VERSION}"
     if ! command -v spreet >/dev/null 2>&1; then
         echo "[1] FEHLER: spreet konnte nicht installiert werden."
         exit 1
