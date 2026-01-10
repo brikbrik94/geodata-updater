@@ -71,11 +71,19 @@ elif command -v docker >/dev/null 2>&1; then
     fi
   fi
   echo "[3/4] Erzeuge Sprite via Docker ($SPRITEZERO_IMAGE)..."
-  docker run --rm \
-    -v "$SVG_DIR:/work/input:ro" \
-    -v "$SPRITES_DIR:/work/output" \
-    "$SPRITEZERO_IMAGE" \
-    spritezero --output "/work/output/$SPRITE_NAME.png" --json "/work/output/$SPRITE_NAME.json" /work/input
+  if [[ "$SPRITEZERO_IMAGE" == *"geographica/spritezero-cli"* ]]; then
+    docker run --rm \
+      -v "$SVG_DIR:/work/input:ro" \
+      -v "$SPRITES_DIR:/work/output" \
+      "$SPRITEZERO_IMAGE" \
+      spritezero "/work/output/$SPRITE_NAME" /work/input
+  else
+    docker run --rm \
+      -v "$SVG_DIR:/work/input:ro" \
+      -v "$SPRITES_DIR:/work/output" \
+      "$SPRITEZERO_IMAGE" \
+      spritezero --output "/work/output/$SPRITE_NAME.png" --json "/work/output/$SPRITE_NAME.json" /work/input
+  fi
 else
   echo "❌ Weder 'spritezero' noch 'docker' gefunden. Bitte installiere spritezero-cli oder Docker."
   exit 1
