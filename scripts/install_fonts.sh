@@ -3,7 +3,7 @@ set -euo pipefail
 
 ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
 FONTS_DIR="$ASSETS_DIR/fonts"
-FONTS_REPO_URL="${FONTS_REPO_URL:-https://github.com/openmaptiles/fonts/archive/refs/heads/master.zip}"
+FONTS_REPO_URL="${FONTS_REPO_URL:-https://github.com/openmaptiles/fonts.git}"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -11,13 +11,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "[fonts] Lade Fonts von $FONTS_REPO_URL..."
-wget -q -O "$TMP_DIR/fonts.zip" "$FONTS_REPO_URL"
-unzip -q "$TMP_DIR/fonts.zip" -d "$TMP_DIR"
+echo "[fonts] Klone Fonts-Repository von $FONTS_REPO_URL..."
+git clone --depth 1 "$FONTS_REPO_URL" "$TMP_DIR/fonts"
 
-SOURCE_DIR="$(find "$TMP_DIR" -maxdepth 1 -type d -name 'fonts-*' -print -quit)"
-if [ -z "$SOURCE_DIR" ]; then
-    echo "FEHLER: Entpacktes Fonts-Verzeichnis nicht gefunden."
+pushd "$TMP_DIR/fonts" >/dev/null
+echo "[fonts] Installiere npm-Abhängigkeiten..."
+npm install
+echo "[fonts] Generiere Fonts..."
+node ./generate.js
+popd >/dev/null
+
+SOURCE_DIR="$TMP_DIR/fonts/_output"
+if [ ! -d "$SOURCE_DIR" ]; then
+    echo "FEHLER: _output-Verzeichnis nicht gefunden."
     exit 1
 fi
 
