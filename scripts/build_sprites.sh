@@ -8,8 +8,7 @@ ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
 ATTRIBUTION_DIR="${ATTRIBUTION_DIR:-/srv/info/attribution}"
 SPRITES_DIR="$ASSETS_DIR/sprites"
 ATTRIBUTION_TARGET="$ATTRIBUTION_DIR/map-icons"
-SPRITEZERO_IMAGE="${SPRITEZERO_IMAGE:-}"
-
+SPREET_IMAGE="${SPREET_IMAGE:-ghcr.io/flother/spreet:latest}"
 TMP_DIR="$(mktemp -d)"
 cleanup() {
   rm -rf "$TMP_DIR"
@@ -40,52 +39,45 @@ fi
 
 SPRITE_PNG="$SPRITES_DIR/$SPRITE_NAME.png"
 SPRITE_JSON="$SPRITES_DIR/$SPRITE_NAME.json"
+SPRITE_PNG_2X="$SPRITES_DIR/$SPRITE_NAME@2x.png"
+SPRITE_JSON_2X="$SPRITES_DIR/$SPRITE_NAME@2x.json"
 
-if command -v spritezero >/dev/null 2>&1; then
-  echo "[3/4] Erzeuge Sprite via spritezero..."
-  spritezero --output "$SPRITE_PNG" --json "$SPRITE_JSON" "$SVG_DIR"
-elif command -v docker >/dev/null 2>&1; then
-  if [[ -n "$SPRITEZERO_IMAGE" ]]; then
-    if ! docker pull "$SPRITEZERO_IMAGE" >/dev/null 2>&1; then
-      echo "❌ Docker-Image $SPRITEZERO_IMAGE konnte nicht geladen werden."
-      echo "   Hinweis: Setze SPRITEZERO_IMAGE auf ein erreichbares Image"
-      echo "   oder installiere spritezero-cli lokal."
-      exit 1
-    fi
+if ! command -v docker >/dev/null 2>&1; then
+  echo "❌ Docker nicht gefunden. Bitte installiere Docker."
+  exit 1
+fi
+
+SPREET_INPUT_DIR="/work/input"
+SPREET_OUTPUT_DIR="/work/output"
+
+run_spreet() {
+  docker run --rm \
+    -v "$SVG_DIR:$SPREET_INPUT_DIR:ro" \
+    -v "$SPRITES_DIR:$SPREET_OUTPUT_DIR" \
+    "$SPREET_IMAGE" \
+    spreet "$@"
+}
+
+echo "[3/4] Erzeuge Sprite via spreet..."
+SPREET_HELP="$(run_spreet --help 2>&1 || true)"
+if echo "$SPREET_HELP" | grep -q -- "--data"; then
+  if echo "$SPREET_HELP" | grep -q -- "--ratio"; then
+    run_spreet --data "$SPREET_OUTPUT_DIR/$SPRITE_NAME.json" --sheet "$SPREET_OUTPUT_DIR/$SPRITE_NAME.png" --ratio 1 "$SPREET_INPUT_DIR"
+    run_spreet --data "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x.json" --sheet "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x.png" --ratio 2 "$SPREET_INPUT_DIR"
   else
-    for candidate in \
-      "docker.io/geographica/spritezero-cli:latest" \
-      "docker.io/maplibre/spritezero:latest" \
-      "docker.io/mapbox/spritezero:latest" \
-      "ghcr.io/maplibre/spritezero:latest"; do
-      if docker pull "$candidate" >/dev/null 2>&1; then
-        SPRITEZERO_IMAGE="$candidate"
-        break
-      fi
-    done
-    if [[ -z "$SPRITEZERO_IMAGE" ]]; then
-      echo "❌ Kein erreichbares spritezero Docker-Image gefunden."
-      echo "   Hinweis: Setze SPRITEZERO_IMAGE auf ein erreichbares Image"
-      echo "   oder installiere spritezero-cli lokal."
-      exit 1
-    fi
+    run_spreet --data "$SPREET_OUTPUT_DIR/$SPRITE_NAME.json" --sheet "$SPREET_OUTPUT_DIR/$SPRITE_NAME.png" "$SPREET_INPUT_DIR"
+    run_spreet --data "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x.json" --sheet "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x.png" --retina "$SPREET_INPUT_DIR"
   fi
-  echo "[3/4] Erzeuge Sprite via Docker ($SPRITEZERO_IMAGE)..."
-  if [[ "$SPRITEZERO_IMAGE" == *"geographica/spritezero-cli"* ]]; then
-    docker run --rm \
-      -v "$SVG_DIR:/work/input:ro" \
-      -v "$SPRITES_DIR:/work/output" \
-      "$SPRITEZERO_IMAGE" \
-      spritezero "/work/output/$SPRITE_NAME" /work/input
+elif echo "$SPREET_HELP" | grep -q -- "--output"; then
+  if echo "$SPREET_HELP" | grep -q -- "--ratio"; then
+    run_spreet --output "$SPREET_OUTPUT_DIR/$SPRITE_NAME" --ratio 1 "$SPREET_INPUT_DIR"
+    run_spreet --output "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x" --ratio 2 "$SPREET_INPUT_DIR"
   else
-    docker run --rm \
-      -v "$SVG_DIR:/work/input:ro" \
-      -v "$SPRITES_DIR:/work/output" \
-      "$SPRITEZERO_IMAGE" \
-      spritezero --output "/work/output/$SPRITE_NAME.png" --json "/work/output/$SPRITE_NAME.json" /work/input
+    run_spreet --output "$SPREET_OUTPUT_DIR/$SPRITE_NAME" "$SPREET_INPUT_DIR"
+    run_spreet --output "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x" --retina "$SPREET_INPUT_DIR"
   fi
 else
-  echo "❌ Weder 'spritezero' noch 'docker' gefunden. Bitte installiere spritezero-cli oder Docker."
+  echo "❌ Unbekannte spreet-CLI. Bitte prüfe 'spreet --help'."
   exit 1
 fi
 
@@ -104,4 +96,5 @@ Downloaded: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SOURCE
 
 echo "[4/4] Fertig. Sprite: $SPRITE_PNG / $SPRITE_JSON"
+echo "[4/4] Fertig. Sprite (@2x): $SPRITE_PNG_2X / $SPRITE_JSON_2X"
 echo "Attribution: $ATTRIBUTION_TARGET"

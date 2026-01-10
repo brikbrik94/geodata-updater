@@ -15,6 +15,7 @@ ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
 BUILD_DIR="${BUILD_DIR:-/srv/build}"
 ORS_DIR="${ORS_DIR:-/srv/ors}"
 STYLE_SOURCE="${STYLE_SOURCE:-styles/style.json}"
+SPREET_IMAGE="${SPREET_IMAGE:-ghcr.io/flother/spreet:latest}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -45,6 +46,17 @@ if [ ! -d "$VENV_DIR" ]; then
     sudo python3 -m venv "$VENV_DIR"
 fi
 sudo "$VENV_DIR/bin/pip" install --upgrade pip pmtiles
+
+if command -v docker >/dev/null 2>&1; then
+    echo "[1] Lade spreet Docker-Image..."
+    if ! sudo docker pull "$SPREET_IMAGE"; then
+        echo "[1] FEHLER: spreet Docker-Image konnte nicht geladen werden: $SPREET_IMAGE"
+        exit 1
+    fi
+else
+    echo "[1] FEHLER: Docker nicht gefunden."
+    exit 1
+fi
 
 # 2. Ordnerstruktur erstellen
 echo "[2] Erstelle Ordnerstruktur in /srv..."
