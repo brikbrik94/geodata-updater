@@ -54,6 +54,7 @@ elif command -v docker >/dev/null 2>&1; then
     fi
   else
     for candidate in \
+      "docker.io/geographica/spritezero-cli:latest" \
       "docker.io/maplibre/spritezero:latest" \
       "docker.io/mapbox/spritezero:latest" \
       "ghcr.io/maplibre/spritezero:latest"; do
