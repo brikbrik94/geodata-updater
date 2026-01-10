@@ -39,12 +39,17 @@ fi
 # 1. Abhängigkeiten prüfen/installieren
 echo "[1] Installiere System-Pakete..."
 sudo apt-get update
-sudo apt-get install -y osmium-tool wget python3 python3-venv docker.io docker-cli acl unzip nodejs npm
+sudo apt-get install -y osmium-tool wget python3 python3-venv docker.io docker-cli acl unzip nodejs npm golang librsvg2-bin
 VENV_DIR="${VENV_DIR:-/srv/scripts/venv}"
 if [ ! -d "$VENV_DIR" ]; then
     sudo python3 -m venv "$VENV_DIR"
 fi
 sudo "$VENV_DIR/bin/pip" install --upgrade pip pmtiles
+
+if ! command -v spreet >/dev/null 2>&1; then
+    echo "[1] Installiere spreet..."
+    sudo env GOBIN=/usr/local/bin go install github.com/flopp/spreet@latest
+fi
 
 # 2. Ordnerstruktur erstellen
 echo "[2] Erstelle Ordnerstruktur in /srv..."
