@@ -15,6 +15,7 @@ ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
 BUILD_DIR="${BUILD_DIR:-/srv/build}"
 ORS_DIR="${ORS_DIR:-/srv/ors}"
 STYLE_SOURCE="${STYLE_SOURCE:-styles/style.json}"
+SPREET_VERSION="${SPREET_VERSION:-latest}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -48,7 +49,11 @@ sudo "$VENV_DIR/bin/pip" install --upgrade pip pmtiles
 
 if ! command -v spreet >/dev/null 2>&1; then
     echo "[1] Installiere spreet..."
-    sudo env GOBIN=/usr/local/bin go install github.com/flopp/spreet@latest
+    sudo env GOBIN=/usr/local/bin go install "github.com/flopp/spreet@${SPREET_VERSION}"
+    if ! command -v spreet >/dev/null 2>&1; then
+        echo "[1] FEHLER: spreet konnte nicht installiert werden."
+        exit 1
+    fi
 fi
 
 # 2. Ordnerstruktur erstellen
