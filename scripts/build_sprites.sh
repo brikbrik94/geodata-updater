@@ -36,4 +36,4 @@ docker run --rm \
   -v "$SVG_DIR:/work/input:ro" \
   -v "$SPRITES_DIR:/work/output" \
   "$SPREET_IMAGE" \
-  spreet "/work/input" "/work/output/$SPRITE_NAME" --retina
+  "/work/input" "/work/output/$SPRITE_NAME" --retina
