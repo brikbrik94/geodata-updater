@@ -8,6 +8,7 @@ ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
 ATTRIBUTION_DIR="${ATTRIBUTION_DIR:-/srv/info/attribution}"
 SPRITES_DIR="$ASSETS_DIR/sprites"
 ATTRIBUTION_TARGET="$ATTRIBUTION_DIR/map-icons"
+SPREET_IMAGE="${SPREET_IMAGE:-ghcr.io/flother/spreet:latest}"
 TMP_DIR="$(mktemp -d)"
 cleanup() {
   rm -rf "$TMP_DIR"
@@ -41,28 +42,39 @@ SPRITE_JSON="$SPRITES_DIR/$SPRITE_NAME.json"
 SPRITE_PNG_2X="$SPRITES_DIR/$SPRITE_NAME@2x.png"
 SPRITE_JSON_2X="$SPRITES_DIR/$SPRITE_NAME@2x.json"
 
-if ! command -v spreet >/dev/null 2>&1; then
-  echo "❌ 'spreet' nicht gefunden. Bitte installiere spreet (siehe install.sh)."
+if ! command -v docker >/dev/null 2>&1; then
+  echo "❌ Docker nicht gefunden. Bitte installiere Docker."
   exit 1
 fi
 
+SPREET_INPUT_DIR="/work/input"
+SPREET_OUTPUT_DIR="/work/output"
+
+run_spreet() {
+  docker run --rm \
+    -v "$SVG_DIR:$SPREET_INPUT_DIR:ro" \
+    -v "$SPRITES_DIR:$SPREET_OUTPUT_DIR" \
+    "$SPREET_IMAGE" \
+    spreet "$@"
+}
+
 echo "[3/4] Erzeuge Sprite via spreet..."
-SPREET_HELP="$(spreet --help 2>&1 || true)"
+SPREET_HELP="$(run_spreet --help 2>&1 || true)"
 if echo "$SPREET_HELP" | grep -q -- "--data"; then
   if echo "$SPREET_HELP" | grep -q -- "--ratio"; then
-    spreet --data "$SPRITE_JSON" --sheet "$SPRITE_PNG" --ratio 1 "$SVG_DIR"
-    spreet --data "$SPRITE_JSON_2X" --sheet "$SPRITE_PNG_2X" --ratio 2 "$SVG_DIR"
+    run_spreet --data "$SPREET_OUTPUT_DIR/$SPRITE_NAME.json" --sheet "$SPREET_OUTPUT_DIR/$SPRITE_NAME.png" --ratio 1 "$SPREET_INPUT_DIR"
+    run_spreet --data "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x.json" --sheet "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x.png" --ratio 2 "$SPREET_INPUT_DIR"
   else
-    spreet --data "$SPRITE_JSON" --sheet "$SPRITE_PNG" "$SVG_DIR"
-    spreet --data "$SPRITE_JSON_2X" --sheet "$SPRITE_PNG_2X" --retina "$SVG_DIR"
+    run_spreet --data "$SPREET_OUTPUT_DIR/$SPRITE_NAME.json" --sheet "$SPREET_OUTPUT_DIR/$SPRITE_NAME.png" "$SPREET_INPUT_DIR"
+    run_spreet --data "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x.json" --sheet "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x.png" --retina "$SPREET_INPUT_DIR"
   fi
 elif echo "$SPREET_HELP" | grep -q -- "--output"; then
   if echo "$SPREET_HELP" | grep -q -- "--ratio"; then
-    spreet --output "$SPRITES_DIR/$SPRITE_NAME" --ratio 1 "$SVG_DIR"
-    spreet --output "$SPRITES_DIR/$SPRITE_NAME@2x" --ratio 2 "$SVG_DIR"
+    run_spreet --output "$SPREET_OUTPUT_DIR/$SPRITE_NAME" --ratio 1 "$SPREET_INPUT_DIR"
+    run_spreet --output "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x" --ratio 2 "$SPREET_INPUT_DIR"
   else
-    spreet --output "$SPRITES_DIR/$SPRITE_NAME" "$SVG_DIR"
-    spreet --output "$SPRITES_DIR/$SPRITE_NAME@2x" --retina "$SVG_DIR"
+    run_spreet --output "$SPREET_OUTPUT_DIR/$SPRITE_NAME" "$SPREET_INPUT_DIR"
+    run_spreet --output "$SPREET_OUTPUT_DIR/$SPRITE_NAME@2x" --retina "$SPREET_INPUT_DIR"
   fi
 else
   echo "❌ Unbekannte spreet-CLI. Bitte prüfe 'spreet --help'."
