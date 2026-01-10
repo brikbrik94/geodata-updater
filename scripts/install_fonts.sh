@@ -4,6 +4,7 @@ set -euo pipefail
 ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
 FONTS_DIR="$ASSETS_DIR/fonts"
 FONTS_REPO_URL="${FONTS_REPO_URL:-https://github.com/openmaptiles/fonts.git}"
+ATTRIBUTION_DIR="${ATTRIBUTION_DIR:-/srv/info/attribution/openmaptiles-fonts}"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -31,4 +32,13 @@ sudo mkdir -p "$FONTS_DIR"
 sudo rm -rf "$FONTS_DIR"/*
 sudo cp -R "$SOURCE_DIR"/* "$FONTS_DIR"/
 
+sudo mkdir -p "$ATTRIBUTION_DIR"
+if [ -f "$TMP_DIR/fonts/LICENSE" ]; then
+    sudo cp "$TMP_DIR/fonts/LICENSE" "$ATTRIBUTION_DIR/"
+fi
+if [ -f "$TMP_DIR/fonts/README.md" ]; then
+    sudo cp "$TMP_DIR/fonts/README.md" "$ATTRIBUTION_DIR/"
+fi
+
 echo "[fonts] Fonts installiert nach $FONTS_DIR"
+echo "[fonts] Attribution gespeichert in $ATTRIBUTION_DIR"
