@@ -5,7 +5,8 @@
 # ==========================================
 DOCKER_IMAGE="local-spreet-builder"
 SPREET_REPO="https://github.com/flother/spreet.git"
-OUTPUT_DIR="/srv/assets/scripts"
+OUTPUT_DIR="/srv/assets/sprites"
+ATTRIBUTION_DIR="/srv/info/attribution"
 
 # Maki Einstellungen
 MAKI_REPO="https://github.com/mapbox/maki.git"
@@ -26,6 +27,7 @@ if ! command -v docker &> /dev/null; then
 fi
 
 mkdir -p "$OUTPUT_DIR"
+sudo mkdir -p "$ATTRIBUTION_DIR/maki" "$ATTRIBUTION_DIR/temaki"
 
 # Image bauen (nur einmal)
 if [[ "$(docker images -q $DOCKER_IMAGE 2> /dev/null)" == "" ]]; then
@@ -46,6 +48,12 @@ mkdir -p "$FLAT_DIR"
 git clone --depth 1 "$MAKI_REPO" "$TEMP_DIR" > /dev/null 2>&1
 
 if [ -d "$TEMP_DIR/icons" ]; then
+    if [ -f "$TEMP_DIR/LICENSE.txt" ]; then
+        sudo cp "$TEMP_DIR/LICENSE.txt" "$ATTRIBUTION_DIR/maki/"
+    fi
+    if [ -f "$TEMP_DIR/README.md" ]; then
+        sudo cp "$TEMP_DIR/README.md" "$ATTRIBUTION_DIR/maki/"
+    fi
     # Maki hat flache Dateien, wir kopieren sie einfach
     cp "$TEMP_DIR/icons/"*.svg "$FLAT_DIR/"
     COUNT=$(ls -1 "$FLAT_DIR"/*.svg 2>/dev/null | wc -l)
@@ -80,6 +88,12 @@ mkdir -p "$FLAT_DIR"
 git clone --depth 1 "$TEMAKI_REPO" "$TEMP_DIR" > /dev/null 2>&1
 
 if [ -d "$TEMP_DIR/icons" ]; then
+    if [ -f "$TEMP_DIR/LICENSE" ]; then
+        sudo cp "$TEMP_DIR/LICENSE" "$ATTRIBUTION_DIR/temaki/"
+    fi
+    if [ -f "$TEMP_DIR/README.md" ]; then
+        sudo cp "$TEMP_DIR/README.md" "$ATTRIBUTION_DIR/temaki/"
+    fi
     # Temaki hat Unterordner -> Umbenennen zu kategorie_name.svg
     cd "$TEMP_DIR/icons" || exit
     find . -type f -name "*.svg" | while read -r FILE; do
