@@ -8,7 +8,7 @@ ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
 ATTRIBUTION_DIR="${ATTRIBUTION_DIR:-/srv/info/attribution}"
 SPRITES_DIR="$ASSETS_DIR/sprites"
 ATTRIBUTION_TARGET="$ATTRIBUTION_DIR/map-icons"
-SPRITEZERO_IMAGE="${SPRITEZERO_IMAGE:-ghcr.io/maplibre/spritezero:latest}"
+SPRITEZERO_IMAGE="${SPRITEZERO_IMAGE:-docker.io/mapbox/spritezero:latest}"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -46,6 +46,12 @@ if command -v spritezero >/dev/null 2>&1; then
   spritezero --output "$SPRITE_PNG" --json "$SPRITE_JSON" "$SVG_DIR"
 elif command -v docker >/dev/null 2>&1; then
   echo "[3/4] Erzeuge Sprite via Docker ($SPRITEZERO_IMAGE)..."
+  if ! docker pull "$SPRITEZERO_IMAGE" >/dev/null 2>&1; then
+    echo "❌ Docker-Image $SPRITEZERO_IMAGE konnte nicht geladen werden."
+    echo "   Hinweis: Setze SPRITEZERO_IMAGE auf ein erreichbares Image"
+    echo "   oder installiere spritezero-cli lokal."
+    exit 1
+  fi
   docker run --rm \
     -v "$SVG_DIR:/work/input:ro" \
     -v "$SPRITES_DIR:/work/output" \
