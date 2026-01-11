@@ -21,11 +21,28 @@ _tiles_base_url = os.environ.get("TILES_BASE_URL", "").rstrip("/")
 _assets_base_url = os.environ.get("ASSETS_BASE_URL", "").rstrip("/")
 
 
-def collect_files(root: Path, base_url: str):
+def collect_files(root: Path, base_url: str, summarize_fonts: bool = False):
     entries = []
+    seen_font_dirs = set()
     if root.exists():
         for path in sorted(p for p in root.rglob("*") if p.is_file()):
             rel_path = path.relative_to(root)
+            if summarize_fonts and rel_path.parts[:1] == ("fonts",):
+                if len(rel_path.parts) < 2:
+                    continue
+                font_dir = Path("fonts") / rel_path.parts[1]
+                if font_dir in seen_font_dirs:
+                    continue
+                seen_font_dirs.add(font_dir)
+                url = f"{base_url}/{font_dir.as_posix()}" if base_url else None
+                entries.append(
+                    {
+                        "path": str(root / font_dir),
+                        "relative_path": font_dir.as_posix(),
+                        "url": url,
+                    }
+                )
+                continue
             url = f"{base_url}/{rel_path.as_posix()}" if base_url else None
             entries.append(
                 {
@@ -41,7 +58,7 @@ info = {
     "tiles_base_url": _tiles_base_url or None,
     "assets_base_url": _assets_base_url or None,
     "tiles": collect_files(_tiles_dir, _tiles_base_url),
-    "assets": collect_files(_assets_dir, _assets_base_url),
+    "assets": collect_files(_assets_dir, _assets_base_url, summarize_fonts=True),
 }
 
 _info_output.parent.mkdir(parents=True, exist_ok=True)
