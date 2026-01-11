@@ -106,8 +106,9 @@ for style_path in style_files:
             change_log.append(f"    📝 Font: \"{old}\" -> \"{new}\"")
 
     if sprite_template:
+        sprite_tileset = "temaki" if tileset == "osm" else tileset
         new_sprite = (
-            sprite_template.replace("{tileset}", tileset)
+            sprite_template.replace("{tileset}", sprite_tileset)
             .replace("{style_id}", style_id)
         )
         if data.get("sprite") != new_sprite:
