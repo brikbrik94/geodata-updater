@@ -13,12 +13,12 @@ BUILD_DIR="/srv/build"
 
 # Maki Einstellungen
 MAKI_REPO="https://github.com/mapbox/maki.git"
-MAKI_OUT="maki-sprite"
+MAKI_OUT="sprite"
 MAKI_DIR="$OUTPUT_DIR/maki"
 
 # Temaki Einstellungen
 TEMAKI_REPO="https://github.com/rapideditor/temaki.git"
-TEMAKI_OUT="temaki-sprite"
+TEMAKI_OUT="sprite"
 TEMAKI_DIR="$OUTPUT_DIR/temaki"
 
 # ==========================================
@@ -193,6 +193,6 @@ echo ""
 echo "Nächste Schritte:"
 echo "1. Lade diese Dateien auf deinen Webserver / S3 Bucket."
 echo "2. Wähle in deiner style.json EINES der Sets aus:"
-echo "   \"sprite\": \"https://dein-server.de/icons/sprites/maki/maki-sprite\""
+echo "   \"sprite\": \"https://dein-server.de/icons/sprites/maki/sprite\""
 echo "   ODER"
-echo "   \"sprite\": \"https://dein-server.de/icons/sprites/temaki/temaki-sprite\""
+echo "   \"sprite\": \"https://dein-server.de/icons/sprites/temaki/sprite\""
