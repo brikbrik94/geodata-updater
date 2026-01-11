@@ -9,14 +9,17 @@ OUTPUT_DIR="/srv/assets/sprites"
 ATTRIBUTION_DIR="/srv/info/attribution"
 INFO_DIR="/srv/info"
 SPRITE_INVENTORY_FILE="sprite_inventory.json"
+BUILD_DIR="/srv/build"
 
 # Maki Einstellungen
 MAKI_REPO="https://github.com/mapbox/maki.git"
 MAKI_OUT="maki-sprite"
+MAKI_DIR="$OUTPUT_DIR/maki"
 
 # Temaki Einstellungen
 TEMAKI_REPO="https://github.com/rapideditor/temaki.git"
 TEMAKI_OUT="temaki-sprite"
+TEMAKI_DIR="$OUTPUT_DIR/temaki"
 
 # ==========================================
 # 1. VORBEREITUNG
@@ -28,7 +31,7 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR" "$MAKI_DIR" "$TEMAKI_DIR"
 sudo mkdir -p "$ATTRIBUTION_DIR/maki" "$ATTRIBUTION_DIR/temaki"
 
 # Image bauen (nur einmal)
@@ -63,12 +66,12 @@ if [ -d "$TEMP_DIR/icons" ]; then
 
     # 1x Build
     docker run --rm --entrypoint /app/spreet \
-        -v "$(pwd)/$FLAT_DIR:/sources" -v "$OUTPUT_DIR:/output" \
+        -v "$(pwd)/$FLAT_DIR:/sources" -v "$MAKI_DIR:/output" \
         $DOCKER_IMAGE /sources /output/$MAKI_OUT
 
     # 2x Build
     docker run --rm --entrypoint /app/spreet \
-        -v "$(pwd)/$FLAT_DIR:/sources" -v "$OUTPUT_DIR:/output" \
+        -v "$(pwd)/$FLAT_DIR:/sources" -v "$MAKI_DIR:/output" \
         $DOCKER_IMAGE --retina /sources /output/${MAKI_OUT}@2x
 else
     echo "FEHLER: Maki Icons nicht gefunden."
@@ -110,12 +113,12 @@ if [ -d "$TEMP_DIR/icons" ]; then
 
     # 1x Build (ohne --unique für saubere Namen)
     docker run --rm --entrypoint /app/spreet \
-        -v "$(pwd)/$FLAT_DIR:/sources" -v "$OUTPUT_DIR:/output" \
+        -v "$(pwd)/$FLAT_DIR:/sources" -v "$TEMAKI_DIR:/output" \
         $DOCKER_IMAGE /sources /output/$TEMAKI_OUT
 
     # 2x Build
     docker run --rm --entrypoint /app/spreet \
-        -v "$(pwd)/$FLAT_DIR:/sources" -v "$OUTPUT_DIR:/output" \
+        -v "$(pwd)/$FLAT_DIR:/sources" -v "$TEMAKI_DIR:/output" \
         $DOCKER_IMAGE --retina /sources /output/${TEMAKI_OUT}@2x
 else
     echo "FEHLER: Temaki Icons nicht gefunden."
@@ -125,14 +128,38 @@ fi
 rm -rf "$TEMP_DIR" "$FLAT_DIR"
 
 # ==========================================
-# 4. ABSCHLUSS & RECHTE
+# 4. SPRITES AUS /srv/build ÜBERNEHMEN
+# ==========================================
+echo ""
+echo "--- Übernehme Tileset-Sprites aus $BUILD_DIR... ---"
+if [[ -d "$BUILD_DIR" ]]; then
+    while IFS= read -r -d '' tmp_dir; do
+        tileset_id="$(basename "$(dirname "$tmp_dir")")"
+        sprites_dir="$tmp_dir/sprites"
+        if [[ ! -d "$sprites_dir" ]]; then
+            continue
+        fi
+        tileset_output_dir="$OUTPUT_DIR/$tileset_id"
+        mkdir -p "$tileset_output_dir"
+        for sprite_file in sprite.json sprite.png sprite@2x.json sprite@2x.png; do
+            if [[ -f "$sprites_dir/$sprite_file" ]]; then
+                cp -f "$sprites_dir/$sprite_file" "$tileset_output_dir/$sprite_file"
+            fi
+        done
+    done < <(find "$BUILD_DIR" -mindepth 2 -maxdepth 2 -type d -name tmp -print0)
+else
+    echo "⚠️ Build-Verzeichnis nicht gefunden: $BUILD_DIR"
+fi
+
+# ==========================================
+# 5. ABSCHLUSS & RECHTE
 # ==========================================
 echo ""
 echo "--- Fixiere Dateirechte... ---"
 USER_ID=$(id -u)
 GROUP_ID=$(id -g)
 if [[ "$OSTYPE" != "msys" && "$OSTYPE" != "win32" ]]; then
-     sudo chown $USER_ID:$GROUP_ID "$OUTPUT_DIR"/*sprite* 2>/dev/null || chown $USER_ID:$GROUP_ID "$OUTPUT_DIR"/*sprite*
+     sudo chown -R $USER_ID:$GROUP_ID "$OUTPUT_DIR" 2>/dev/null || chown -R $USER_ID:$GROUP_ID "$OUTPUT_DIR"
 fi
 
 echo ""
@@ -142,7 +169,7 @@ TMP_SPRITE_INVENTORY="$(mktemp)"
 echo "{" > "$TMP_SPRITE_INVENTORY"
 echo "  \"sprites\": [" >> "$TMP_SPRITE_INVENTORY"
 
-mapfile -t SPRITE_FILES < <(ls -1 "$OUTPUT_DIR"/*sprite* 2>/dev/null | xargs -n 1 basename | sort || true)
+mapfile -t SPRITE_FILES < <(find "$OUTPUT_DIR" -type f \( -name "*.json" -o -name "*.png" \) -print | sed "s|^$OUTPUT_DIR/||" | sort)
 if [ "${#SPRITE_FILES[@]}" -gt 0 ]; then
     for index in "${!SPRITE_FILES[@]}"; do
         separator=","
@@ -161,11 +188,11 @@ mv "$TMP_SPRITE_INVENTORY" "$INFO_DIR/$SPRITE_INVENTORY_FILE"
 echo "=========================================="
 echo "FERTIG! Folgende Dateien wurden erstellt:"
 echo "=========================================="
-ls -lh "$OUTPUT_DIR"/*sprite* | grep -E ".png|.json"
+find "$OUTPUT_DIR" -type f \( -name "*.json" -o -name "*.png" \) -print0 | xargs -0 -r ls -lh | grep -E ".png|.json"
 echo ""
 echo "Nächste Schritte:"
 echo "1. Lade diese Dateien auf deinen Webserver / S3 Bucket."
 echo "2. Wähle in deiner style.json EINES der Sets aus:"
-echo "   \"sprite\": \"https://dein-server.de/icons/maki-sprite\""
+echo "   \"sprite\": \"https://dein-server.de/icons/sprites/maki/maki-sprite\""
 echo "   ODER"
-echo "   \"sprite\": \"https://dein-server.de/icons/temaki-sprite\""
+echo "   \"sprite\": \"https://dein-server.de/icons/sprites/temaki/temaki-sprite\""
