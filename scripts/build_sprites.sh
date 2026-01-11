@@ -7,6 +7,8 @@ DOCKER_IMAGE="local-spreet-builder"
 SPREET_REPO="https://github.com/flother/spreet.git"
 OUTPUT_DIR="/srv/assets/sprites"
 ATTRIBUTION_DIR="/srv/info/attribution"
+INFO_DIR="/srv/info"
+SPRITE_INVENTORY_FILE="sprite_inventory.json"
 
 # Maki Einstellungen
 MAKI_REPO="https://github.com/mapbox/maki.git"
@@ -132,6 +134,29 @@ GROUP_ID=$(id -g)
 if [[ "$OSTYPE" != "msys" && "$OSTYPE" != "win32" ]]; then
      sudo chown $USER_ID:$GROUP_ID "$OUTPUT_DIR"/*sprite* 2>/dev/null || chown $USER_ID:$GROUP_ID "$OUTPUT_DIR"/*sprite*
 fi
+
+echo ""
+echo "--- Erstelle Sprite-Inventar... ---"
+mkdir -p "$INFO_DIR"
+TMP_SPRITE_INVENTORY="$(mktemp)"
+echo "{" > "$TMP_SPRITE_INVENTORY"
+echo "  \"sprites\": [" >> "$TMP_SPRITE_INVENTORY"
+
+mapfile -t SPRITE_FILES < <(ls -1 "$OUTPUT_DIR"/*sprite* 2>/dev/null | xargs -n 1 basename | sort || true)
+if [ "${#SPRITE_FILES[@]}" -gt 0 ]; then
+    for index in "${!SPRITE_FILES[@]}"; do
+        separator=","
+        if [ "$index" -eq $((${#SPRITE_FILES[@]} - 1)) ]; then
+            separator=""
+        fi
+        echo "    \"${SPRITE_FILES[$index]}\"$separator" >> "$TMP_SPRITE_INVENTORY"
+    done
+fi
+
+echo "  ]" >> "$TMP_SPRITE_INVENTORY"
+echo "}" >> "$TMP_SPRITE_INVENTORY"
+
+mv "$TMP_SPRITE_INVENTORY" "$INFO_DIR/$SPRITE_INVENTORY_FILE"
 
 echo "=========================================="
 echo "FERTIG! Folgende Dateien wurden erstellt:"
