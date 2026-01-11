@@ -95,6 +95,13 @@ fi
 if [[ -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" ]]; then
   cp -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" "$OUT_META_DIR/iteminfo.xml"
 fi
+if [[ -d "$RAW_DIR/p12/resources/sprites" ]]; then
+  for sprite_file in sprite.json sprite.png sprite@2x.json sprite@2x.png; do
+    if [[ -f "$RAW_DIR/p12/resources/sprites/$sprite_file" ]]; then
+      cp -f "$RAW_DIR/p12/resources/sprites/$sprite_file" "$TMP/$sprite_file"
+    fi
+  done
+fi
 
 if [[ ! -f "$OUT_MBTILES" ]]; then
   echo "🧱 Erzeuge MBTiles"
