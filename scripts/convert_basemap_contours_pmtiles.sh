@@ -15,7 +15,7 @@ RAW_DIR="${RAW_DIR:-$TMP/vtpk_extract}"
 
 OUT_PMTILES="${OUT_PMTILES:-$TMP/basemap-at-contours.pmtiles}"
 OUT_MBTILES="${OUT_MBTILES:-$TMP/basemap-at-contours.mbtiles}"
-OUT_META_DIR="${OUT_META_DIR:-$TMP/metadata}"
+OUT_META_DIR="${OUT_META_DIR:-$TMP}"
 INFO_JSON="${INFO_JSON:-$TMP/basemap-at-contours.json}"
 MAXZOOM="${MAXZOOM:-}"
 ATTRIBUTION="${ATTRIBUTION:-© basemap.at}"
@@ -85,8 +85,9 @@ fi
 # -------------------------------------------------------------------
 echo "🧾 Kopiere VTPK Metadaten"
 mkdir -p "$OUT_META_DIR"
-if [[ -f "$RAW_DIR/p12/root.json" ]]; then
-  cp -f "$RAW_DIR/p12/root.json" "$OUT_META_DIR/root.json"
+if [[ -f "$RAW_DIR/p12/resources/styles/root.json" ]]; then
+  mkdir -p "$OUT_META_DIR/styles"
+  cp -f "$RAW_DIR/p12/resources/styles/root.json" "$OUT_META_DIR/styles/root.json"
 fi
 if [[ -d "$RAW_DIR/p12/resources/styles" ]]; then
   mkdir -p "$OUT_META_DIR/styles"
@@ -94,6 +95,14 @@ if [[ -d "$RAW_DIR/p12/resources/styles" ]]; then
 fi
 if [[ -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" ]]; then
   cp -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" "$OUT_META_DIR/iteminfo.xml"
+fi
+if [[ -d "$RAW_DIR/p12/resources/sprites" ]]; then
+  for sprite_file in sprite.json sprite.png sprite@2x.json sprite@2x.png; do
+    if [[ -f "$RAW_DIR/p12/resources/sprites/$sprite_file" ]]; then
+      mkdir -p "$TMP/sprites"
+      cp -f "$RAW_DIR/p12/resources/sprites/$sprite_file" "$TMP/sprites/$sprite_file"
+    fi
+  done
 fi
 
 if [[ ! -f "$OUT_MBTILES" ]]; then
@@ -116,12 +125,12 @@ FILE_SIZE=$(stat -c%s "$OUT_PMTILES")
 HOST_NAME=$(hostname)
 VTPK_FILENAME=$(basename "$VTPK")
 PMTILES_FILENAME=$(basename "$OUT_PMTILES")
-if [[ -z "$MAXZOOM" && -f "$OUT_META_DIR/root.json" ]]; then
+if [[ -z "$MAXZOOM" && -f "$OUT_META_DIR/styles/root.json" ]]; then
   MAXZOOM=$(OUT_META_DIR="$OUT_META_DIR" python3 - <<'PY'
 import json
 import os
 import pathlib
-root = pathlib.Path(os.environ["OUT_META_DIR"]) / "root.json"
+root = pathlib.Path(os.environ["OUT_META_DIR"]) / "styles" / "root.json"
 try:
     data = json.loads(root.read_text(encoding="utf-8"))
     value = data.get("maxzoom")
