@@ -31,6 +31,14 @@ for font_dir_path in "$FONTS_DIR"/*/; do
 
     font_name_raw=$(basename "$font_dir_path")
     font_name="${font_name_raw// /-}"
+    if [ "$font_name_raw" != "$font_name" ]; then
+        new_dir_path="${font_dir_path%/}"
+        new_dir_path="${new_dir_path%/*}/$font_name/"
+        if [ ! -d "$new_dir_path" ]; then
+            mv "$font_dir_path" "$new_dir_path"
+            font_dir_path="$new_dir_path"
+        fi
+    fi
 
     count_to_delete=$(find "$font_dir_path" -maxdepth 1 -name "*.pbf" -size -"${DELETE_THRESHOLD}"c | wc -l)
     if [ "$count_to_delete" -gt 0 ]; then
