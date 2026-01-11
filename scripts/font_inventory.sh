@@ -29,7 +29,8 @@ FIRST_ENTRY=true
 for font_dir_path in "$FONTS_DIR"/*/; do
     [ -d "$font_dir_path" ] || continue
 
-    font_name=$(basename "$font_dir_path")
+    font_name_raw=$(basename "$font_dir_path")
+    font_name="${font_name_raw// /-}"
 
     count_to_delete=$(find "$font_dir_path" -maxdepth 1 -name "*.pbf" -size -"${DELETE_THRESHOLD}"c | wc -l)
     if [ "$count_to_delete" -gt 0 ]; then
