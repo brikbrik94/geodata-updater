@@ -4,15 +4,11 @@ set -euo pipefail
 TILES_DIR="${TILES_DIR:-/srv/tiles}"
 TILES_BASE_URL="${TILES_BASE_URL:-}"
 ASSETS_BASE_URL="${ASSETS_BASE_URL:-$TILES_BASE_URL}"
+ENDPOINTS_INFO_PATH="${ENDPOINTS_INFO_PATH:-/srv/info/endpoints_info.json}"
 SPRITE_URL_TEMPLATE="${SPRITE_URL_TEMPLATE:-${ASSETS_BASE_URL%/}/sprites/{tileset}/sprite}"
 GLYPHS_URL_TEMPLATE="${GLYPHS_URL_TEMPLATE:-${ASSETS_BASE_URL%/}/fonts/{fontstack}/{range}.pbf}"
 PMTILES_FILE_MAP="${PMTILES_FILE_MAP:-}"
 PMTILES_FILE="${PMTILES_FILE:-}"
-
-if [[ -z "$TILES_BASE_URL" ]]; then
-  echo "❌ TILES_BASE_URL ist leer. Bitte setze die Server-URL."
-  exit 1
-fi
 
 python3 - <<'PY'
 import json
@@ -21,10 +17,29 @@ from pathlib import Path
 
 tiles_dir = Path(os.environ.get("TILES_DIR", "/srv/tiles"))
 tiles_base_url = os.environ.get("TILES_BASE_URL", "").rstrip("/")
-sprite_template = os.environ.get("SPRITE_URL_TEMPLATE", "")
-glyphs_template = os.environ.get("GLYPHS_URL_TEMPLATE", "")
+assets_base_url = os.environ.get("ASSETS_BASE_URL", "").rstrip("/")
+endpoints_info_path = Path(
+    os.environ.get("ENDPOINTS_INFO_PATH", "/srv/info/endpoints_info.json")
+)
 pmtiles_file = os.environ.get("PMTILES_FILE", "").strip()
 pmtiles_map_raw = os.environ.get("PMTILES_FILE_MAP", "").strip()
+
+if (not tiles_base_url or not assets_base_url) and endpoints_info_path.exists():
+    endpoints_info = json.loads(endpoints_info_path.read_text(encoding="utf-8"))
+    if not tiles_base_url:
+        tiles_base_url = (endpoints_info.get("tiles_base_url") or "").rstrip("/")
+    if not assets_base_url:
+        assets_base_url = (endpoints_info.get("assets_base_url") or "").rstrip("/")
+
+sprite_template = os.environ.get("SPRITE_URL_TEMPLATE", "").strip()
+glyphs_template = os.environ.get("GLYPHS_URL_TEMPLATE", "").strip()
+if not sprite_template and assets_base_url:
+    sprite_template = f"{assets_base_url}/sprites/{{tileset}}/sprite"
+if not glyphs_template and assets_base_url:
+    glyphs_template = f"{assets_base_url}/fonts/{{fontstack}}/{{range}}.pbf"
+
+if not tiles_base_url:
+    raise SystemExit("❌ Keine tiles_base_url gefunden. Setze TILES_BASE_URL oder /srv/info/endpoints_info.json.")
 
 font_map = {
     "Arial Regular": "Noto Sans Regular",
