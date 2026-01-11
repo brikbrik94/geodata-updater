@@ -76,17 +76,14 @@ found_tilesets=0
 
 while IFS= read -r -d '' tmp_dir; do
   tileset_id="$(basename "$(dirname "$tmp_dir")")"
-  metadata_dir="$tmp_dir/metadata"
+  styles_tmp_dir="$tmp_dir/styles"
 
-  if [[ -d "$metadata_dir/styles" ]]; then
-    styles_source_dir="$metadata_dir/styles"
-    echo "ℹ️ Verwende Stylesheets aus $styles_source_dir (Tileset $tileset_id)"
-  elif [[ -d "$metadata_dir" ]]; then
-    styles_source_dir="$metadata_dir"
+  if [[ -d "$styles_tmp_dir" ]]; then
+    styles_source_dir="$styles_tmp_dir"
     echo "ℹ️ Verwende Stylesheets aus $styles_source_dir (Tileset $tileset_id)"
   else
     styles_source_dir="$STYLES_FALLBACK_DIR"
-    echo "ℹ️ Kein Metadata-Ordner für Tileset $tileset_id gefunden, verwende Fallback $styles_source_dir"
+    echo "ℹ️ Kein Styles-Ordner für Tileset $tileset_id gefunden, verwende Fallback $styles_source_dir"
   fi
 
   deploy_stylesheets "$tileset_id" "$styles_source_dir" "$STYLE_ID"
