@@ -139,10 +139,11 @@ if [[ -d "$BUILD_DIR" ]]; then
         if [[ ! -d "$sprites_dir" ]]; then
             continue
         fi
+        tileset_output_dir="$OUTPUT_DIR/$tileset_id"
+        mkdir -p "$tileset_output_dir"
         for sprite_file in sprite.json sprite.png sprite@2x.json sprite@2x.png; do
             if [[ -f "$sprites_dir/$sprite_file" ]]; then
-                target_name="$tileset_id${sprite_file#sprite}"
-                cp -f "$sprites_dir/$sprite_file" "$OUTPUT_DIR/$target_name"
+                cp -f "$sprites_dir/$sprite_file" "$tileset_output_dir/$sprite_file"
             fi
         done
     done < <(find "$BUILD_DIR" -mindepth 2 -maxdepth 2 -type d -name tmp -print0)
