@@ -60,18 +60,24 @@ if pmtiles_map_raw:
         tileset, filename = entry.split(":", 1)
         pmtiles_map[tileset] = filename
 
-def replace_fonts(node, changed_flag, replacements):
+def replace_fonts(node, changed_flag, replacements, parent_key=None):
     if isinstance(node, dict):
         for key, value in node.items():
-            node[key] = replace_fonts(value, changed_flag, replacements)
+            node[key] = replace_fonts(value, changed_flag, replacements, key)
         return node
     if isinstance(node, list):
         for idx, value in enumerate(node):
-            node[idx] = replace_fonts(value, changed_flag, replacements)
+            node[idx] = replace_fonts(value, changed_flag, replacements, parent_key)
         return node
     if isinstance(node, str):
-        replacement = font_map.get(node)
-        if replacement and replacement != node:
+        replacement = font_map.get(node, node)
+        if parent_key in {"text-font", "text-fonts"}:
+            normalized = replacement.replace(" ", "-")
+            if normalized != node:
+                changed_flag[0] = True
+                replacements.add((node, normalized))
+                return normalized
+        if replacement != node:
             changed_flag[0] = True
             replacements.add((node, replacement))
             return replacement
