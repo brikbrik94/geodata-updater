@@ -24,8 +24,10 @@ endpoints_info_path = Path(
 pmtiles_file = os.environ.get("PMTILES_FILE", "").strip()
 pmtiles_map_raw = os.environ.get("PMTILES_FILE_MAP", "").strip()
 
-if (not tiles_base_url or not assets_base_url) and endpoints_info_path.exists():
+tiles_entries = []
+if endpoints_info_path.exists():
     endpoints_info = json.loads(endpoints_info_path.read_text(encoding="utf-8"))
+    tiles_entries = endpoints_info.get("tiles", []) or []
     if not tiles_base_url:
         tiles_base_url = (endpoints_info.get("tiles_base_url") or "").rstrip("/")
     if not assets_base_url:
@@ -134,8 +136,22 @@ for style_path in style_files:
             data["glyphs"] = new_glyphs
             changed[0] = True
 
-    if tiles_base_url and current_pmtiles:
-        pmtiles_url = f"pmtiles://{tiles_base_url}/{tileset}/pmtiles/{current_pmtiles}"
+    if current_pmtiles:
+        pmtiles_url = None
+        if tiles_entries:
+            expected_path = (tiles_dir / tileset / "pmtiles" / current_pmtiles).as_posix()
+            for entry in tiles_entries:
+                if entry.get("path") == expected_path:
+                    entry_url = entry.get("url")
+                    if entry_url:
+                        pmtiles_url = (
+                            entry_url
+                            if entry_url.startswith("pmtiles://")
+                            else f"pmtiles://{entry_url}"
+                        )
+                    break
+        if not pmtiles_url and tiles_base_url:
+            pmtiles_url = f"pmtiles://{tiles_base_url}/{tileset}/pmtiles/{current_pmtiles}"
         sources = data.get("sources", {})
         if isinstance(sources, dict):
             for source in sources.values():
@@ -146,7 +162,7 @@ for style_path in style_files:
                     url.startswith("pmtiles://")
                     or "pfad/zu/deiner/datei.pmtiles" in url
                 ):
-                    if url != pmtiles_url:
+                    if pmtiles_url and url != pmtiles_url:
                         change_log.append(f"    📝 Source URL: \"{url}\" -> \"{pmtiles_url}\"")
                         source["url"] = pmtiles_url
                         changed[0] = True
