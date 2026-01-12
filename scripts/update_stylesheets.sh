@@ -158,10 +158,7 @@ for style_path in style_files:
                 if not isinstance(source, dict):
                     continue
                 url = source.get("url")
-                if isinstance(url, str) and (
-                    url.startswith("pmtiles://")
-                    or "pfad/zu/deiner/datei.pmtiles" in url
-                ):
+                if isinstance(url, str):
                     if pmtiles_url and url != pmtiles_url:
                         change_log.append(f"    📝 Source URL: \"{url}\" -> \"{pmtiles_url}\"")
                         source["url"] = pmtiles_url
