@@ -1,176 +1,137 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+# scripts/generate_info_page.sh
+# Generiert eine index.html im OE5ITH-Cloud Design basierend auf den vorhandenen PMTiles.
 
-INFO_DIR="${INFO_DIR:-/srv/info}"
-INFO_PAGE_OUTPUT="${INFO_PAGE_OUTPUT:-$INFO_DIR/info.html}"
-ENDPOINTS_INFO_PATH="${ENDPOINTS_INFO_PATH:-$INFO_DIR/endpoints_info.json}"
-FONTS_INFO_PATH="${FONTS_INFO_PATH:-$INFO_DIR/font_inventory.json}"
-BUILD_DIR="${BUILD_DIR:-/srv/build}"
-ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
+WEB_ROOT="/srv/www/tiles"
+OUTPUT_FILE="$WEB_ROOT/index.html"
+PMTILES_DIR="$WEB_ROOT/pmtiles"
 
-python3 - <<'PY'
-import html
-import json
-import os
-from datetime import datetime, timezone
-from pathlib import Path
+# Stelle sicher, dass das Verzeichnis existiert
+mkdir -p "$WEB_ROOT"
 
-info_dir = Path(os.environ.get("INFO_DIR", "/srv/info"))
-output_path = Path(os.environ.get("INFO_PAGE_OUTPUT", str(info_dir / "info.html")))
-endpoints_path = Path(
-    os.environ.get("ENDPOINTS_INFO_PATH", str(info_dir / "endpoints_info.json"))
-)
-fonts_path = Path(
-    os.environ.get("FONTS_INFO_PATH", str(info_dir / "font_inventory.json"))
-)
-build_dir = Path(os.environ.get("BUILD_DIR", "/srv/build"))
-assets_dir = Path(os.environ.get("ASSETS_DIR", "/srv/assets"))
+# --- HTML HEADER & CSS ---
+# Wir binden das style.css ein, das wir im Ordner assets/ erwarten.
+# Fallback: FontAwesome via CDN.
 
-
-def load_json(path: Path):
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return None
-    except json.JSONDecodeError:
-        return None
-
-
-def escape(value):
-    return html.escape(str(value))
-
-
-endpoints = load_json(endpoints_path) or {}
-fonts = load_json(fonts_path)
-
-if fonts is None:
-    fonts = {}
-    fonts_root = assets_dir / "fonts"
-    if fonts_root.exists():
-        for font_dir in sorted(p for p in fonts_root.iterdir() if p.is_dir()):
-            ranges = sorted(p.name for p in font_dir.glob("*.pbf"))
-            fonts[font_dir.name] = ranges
-
-tileset_infos = []
-if build_dir.exists():
-    for tileset_dir in sorted(p for p in build_dir.iterdir() if p.is_dir()):
-        tmp_dir = tileset_dir / "tmp"
-        if not tmp_dir.exists():
-            continue
-        for info_file in sorted(tmp_dir.glob("*.json")):
-            data = load_json(info_file)
-            if data is None:
-                continue
-            tileset_infos.append(
-                {
-                    "tileset": tileset_dir.name,
-                    "path": info_file,
-                    "data": data,
-                }
-            )
-
-
-def render_endpoints(entries):
-    if not entries:
-        return "<p>Keine Endpunkte gefunden.</p>"
-    rows = []
-    for entry in entries:
-        rel_path = escape(entry.get("relative_path", ""))
-        url = entry.get("url")
-        url_html = (
-            f"<a href=\"{escape(url)}\">{escape(url)}</a>" if url else ""
-        )
-        rows.append(f"<tr><td>{rel_path}</td><td>{url_html}</td></tr>")
-    return (
-        "<table><thead><tr><th>Pfad</th><th>URL</th></tr></thead>"
-        f"<tbody>{''.join(rows)}</tbody></table>"
-    )
-
-
-def render_fonts(font_map):
-    if not font_map:
-        return "<p>Keine Fonts gefunden.</p>"
-    rows = []
-    for font_name in sorted(font_map.keys()):
-        ranges = font_map.get(font_name) or []
-        range_list = ", ".join(escape(r) for r in ranges)
-        rows.append(
-            "<tr>"
-            f"<td>{escape(font_name)}</td>"
-            f"<td>{len(ranges)}</td>"
-            f"<td>{range_list}</td>"
-            "</tr>"
-        )
-    return (
-        "<table><thead><tr><th>Font</th><th>Ranges</th><th>Dateien</th></tr></thead>"
-        f"<tbody>{''.join(rows)}</tbody></table>"
-    )
-
-
-def render_tileset_infos(infos):
-    if not infos:
-        return "<p>Keine Tileset-Infos gefunden.</p>"
-    blocks = []
-    for info in infos:
-        header = (
-            f"<h3>{escape(info['tileset'])}</h3>"
-            f"<p><code>{escape(info['path'])}</code></p>"
-        )
-        data_rows = []
-        data = info.get("data") or {}
-        for key, value in sorted(data.items()):
-            data_rows.append(
-                f"<tr><td>{escape(key)}</td><td>{escape(value)}</td></tr>"
-            )
-        table = (
-            "<table><thead><tr><th>Feld</th><th>Wert</th></tr></thead>"
-            f"<tbody>{''.join(data_rows)}</tbody></table>"
-        )
-        blocks.append(header + table)
-    return "".join(blocks)
-
-
-output_path.parent.mkdir(parents=True, exist_ok=True)
-
-html_content = f"""<!DOCTYPE html>
-<html lang=\"de\">
+cat << 'EOF' > "$OUTPUT_FILE"
+<!DOCTYPE html>
+<html lang="de">
 <head>
-  <meta charset=\"utf-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-  <title>Tileserver Info</title>
-  <style>
-    body {{ font-family: Arial, sans-serif; margin: 2rem; color: #1a1a1a; }}
-    h1, h2, h3 {{ margin-top: 1.5rem; }}
-    table {{ border-collapse: collapse; width: 100%; margin: 0.5rem 0 1.5rem; }}
-    th, td {{ border: 1px solid #ddd; padding: 0.5rem; vertical-align: top; }}
-    th {{ background: #f5f5f5; text-align: left; }}
-    code {{ background: #f0f0f0; padding: 0.1rem 0.3rem; }}
-    .meta {{ color: #555; font-size: 0.9rem; }}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OE5ITH Tileserver</title>
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Zusätzliche Styles für die Dateiliste */
+        .file-meta { font-family: monospace; font-size: 12px; color: var(--muted); margin-top: 4px; }
+        .copy-btn { 
+            background: transparent; border: 1px solid var(--border); color: var(--muted);
+            cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 8px;
+        }
+        .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+    </style>
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('URL kopiert: ' + text);
+            });
+        }
+    </script>
 </head>
 <body>
-  <h1>Tileserver Info</h1>
-  <p class=\"meta\">Generiert am {escape(datetime.now(timezone.utc).isoformat())}</p>
+    <div class="topbar">
+        <div style="display:flex; align-items:center">
+            <div class="brand">OE5ITH.AT</div>
+            <div class="page-title">Tileserver Registry</div>
+        </div>
+        <div>
+             <span style="font-size:12px; color:var(--muted); margin-right:10px">
+                <i class="fa-solid fa-clock"></i> Aktualisiert: DATE_PLACEHOLDER
+            </span>
+        </div>
+    </div>
 
-  <h2>Endpunkte</h2>
-  <p><strong>Tiles Base URL:</strong> {escape(endpoints.get("tiles_base_url") or "-")}</p>
-  <p><strong>Assets Base URL:</strong> {escape(endpoints.get("assets_base_url") or "-")}</p>
+    <div class="layout">
+        <div class="sidebar">
+            <div style="margin-bottom:12px; font-weight:600; font-size:12px; color:var(--muted)">NAVIGATION</div>
+            <a href="https://cloud.oe5ith.at" class="nav-link"><i class="fa-solid fa-arrow-left"></i> Zurück zur Cloud</a>
+            <div style="height:1px; background:var(--border); margin:10px 0"></div>
+            <a href="#" class="nav-link active"><i class="fa-solid fa-layer-group"></i> Verfügbare Maps</a>
+            <a href="/styles/basic.json" target="_blank" class="nav-link"><i class="fa-solid fa-paint-roller"></i> Style JSON</a>
+            <a href="/fonts/" target="_blank" class="nav-link"><i class="fa-solid fa-font"></i> Fonts</a>
+        </div>
 
-  <h3>Tiles</h3>
-  {render_endpoints(endpoints.get("tiles") or [])}
+        <div id="app-main">
+            <h1>Verfügbare Vektorkarten</h1>
+            <p>Diese Dateien liegen als PMTiles (Cloud Native Maps) vor und können direkt eingebunden werden.</p>
 
-  <h3>Assets</h3>
-  {render_endpoints(endpoints.get("assets") or [])}
+            <div class="cards">
+EOF
 
-  <h2>Fonts & Ranges</h2>
-  {render_fonts(fonts)}
+# --- AKTUALISIERUNGSDATUM EINFÜGEN ---
+CURRENT_DATE=$(date "+%d.%m.%Y %H:%M")
+sed -i "s/DATE_PLACEHOLDER/$CURRENT_DATE/g" "$OUTPUT_FILE"
 
-  <h2>Tileset-Infos (Build TMP)</h2>
-  {render_tileset_infos(tileset_infos)}
-</body>
+# --- LOOP ÜBER PMTILES ---
+# Wir suchen alle .pmtiles Dateien und erstellen pro Datei eine "Card"
+if [ -d "$PMTILES_DIR" ]; then
+    for file in "$PMTILES_DIR"/*.pmtiles; do
+        if [ -f "$file" ]; then
+            FILENAME=$(basename "$file")
+            SIZE=$(du -h "$file" | cut -f1)
+            DATE=$(date -r "$file" "+%d.%m.%Y")
+            
+            # URL konstruieren
+            FILE_URL="https://tiles.oe5ith.at/pmtiles/$FILENAME"
+
+            cat << EOCARD >> "$OUTPUT_FILE"
+                <div class="card">
+                    <h3><i class="fa-solid fa-map" style="color:var(--accent); margin-right:6px"></i> $FILENAME</h3>
+                    <div class="file-meta">
+                        <i class="fa-solid fa-hard-drive"></i> $SIZE &bull; <i class="fa-solid fa-calendar"></i> $DATE
+                    </div>
+                    <p style="margin-top:10px; font-size:13px; word-break:break-all;">
+                        <span style="color:var(--muted)">URL:</span><br>
+                        <code style="background:#000; padding:2px 4px; border-radius:4px; color:var(--text)">$FILE_URL</code>
+                        <button class="copy-btn" onclick="copyToClipboard('$FILE_URL')"><i class="fa-solid fa-copy"></i></button>
+                    </p>
+                    <div style="margin-top:12px">
+                        <a href="https://cloud.oe5ith.at/viewer?map=$FILE_URL" class="btn small" target="_blank">
+                            <i class="fa-solid fa-eye"></i> Vorschau
+                        </a>
+                    </div>
+                </div>
+EOCARD
+        fi
+    done
+else
+    # Fallback, falls kein Ordner da ist
+    cat << EOCARD >> "$OUTPUT_FILE"
+    <div class="card">
+        <h3>Keine Karten gefunden</h3>
+        <p>Der Ordner /pmtiles ist leer oder existiert nicht.</p>
+    </div>
+EOCARD
+fi
+
+# --- HTML FOOTER ---
+cat << 'EOF' >> "$OUTPUT_FILE"
+            </div> <h2 style="margin-top:40px; font-size:18px">Technische Endpoints</h2>
+            <div class="cards">
+                <div class="card">
+                    <h3><i class="fa-solid fa-code"></i> Styles & Fonts</h3>
+                    <p>Ressourcen für MapLibre / Mapbox GL.</p>
+                    <ul style="padding-left:20px; color:var(--muted); line-height:1.8">
+                        <li><b>Style:</b> <a href="/styles/basic.json" style="color:var(--accent)">/styles/basic.json</a></li>
+                        <li><b>Fonts:</b> /fonts/{fontstack}/{range}.pbf</li>
+                        <li><b>Sprites:</b> /sprites/sprite@2x.png</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div> </div> </body>
 </html>
-"""
+EOF
 
-output_path.write_text(html_content, encoding="utf-8")
-print(f"✅ Info-Seite geschrieben: {output_path}")
-PY
+echo "✅ Info-Page generiert: $OUTPUT_FILE"
