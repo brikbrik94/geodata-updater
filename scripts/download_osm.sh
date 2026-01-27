@@ -1,89 +1,70 @@
 #!/bin/bash
 set -euo pipefail
 
+# Utils laden
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/utils.sh"
+
 # --- KONFIGURATION ---
-# Pfad zur Datei mit den Links
-INPUT_FILE="/srv/scripts/links.txt"
-# Zielordner für die Downloads
-OUTPUT_DIR="/srv/build/osm/src"
-# Name der Datei, welche die Pfade der Downloads speichert
-LIST_FILE="$OUTPUT_DIR/file_list.txt"
-UPDATED_FLAG="$OUTPUT_DIR/updated.flag"
+SOURCES_DIR="/srv/scripts/sources"
+DOWNLOAD_BASE_DIR="/srv/build/osm/src"
 
-# --- VORBEREITUNG ---
+log_section "SCHRITT 1: DOWNLOAD OSM DATEN"
 
-# Prüfen, ob die Link-Datei existiert
-if [ ! -f "$INPUT_FILE" ]; then
-    echo "FEHLER: Die Datei $INPUT_FILE wurde nicht gefunden."
+if [ ! -d "$SOURCES_DIR" ]; then
+    log_error "Quellen-Verzeichnis nicht gefunden: $SOURCES_DIR"
     exit 1
 fi
 
-# Zielordner erstellen, falls er nicht existiert
-if [ ! -d "$OUTPUT_DIR" ]; then
-    echo "Erstelle Zielordner: $OUTPUT_DIR"
-    mkdir -p "$OUTPUT_DIR"
-fi
+mkdir -p "$DOWNLOAD_BASE_DIR"
 
-# Die Listen-Datei leeren oder erstellen (damit wir bei jedem Lauf eine frische Liste haben)
-> "$LIST_FILE"
-rm -f "$UPDATED_FLAG"
+# Zähler
+COUNT=0
 
-# Links einlesen
-mapfile -t URLS < <(grep -vE '^\s*($|#)' "$INPUT_FILE")
-TOTAL_LINKS=${#URLS[@]}
-
-# --- AUSFÜHRUNG ---
-
-echo "--------------------------------------------------"
-echo "Download-Script für Geofabrik PBFs gestartet"
-echo "Gefundene Links: $TOTAL_LINKS"
-echo "Speicherort: $OUTPUT_DIR"
-echo "Dateiliste wird erstellt in: $LIST_FILE"
-echo "--------------------------------------------------"
-
-CURRENT=1
-NEW_DOWNLOADS=0
-
-for LINK in "${URLS[@]}"; do
-    FILENAME=$(basename "$LINK")
-    FULL_PATH="$OUTPUT_DIR/$FILENAME"
+# --- HAUPTSCHLEIFE ---
+for source_file in "$SOURCES_DIR"/*.txt; do
+    [ -e "$source_file" ] || continue
     
-    echo ""
-    echo "[Datei $CURRENT von $TOTAL_LINKS]: $FILENAME wird verarbeitet..."
+    MAP_NAME="$(basename "$source_file" .txt)"
+    LIST_FILE="$DOWNLOAD_BASE_DIR/${MAP_NAME}.list"
     
-    OLD_MTIME=""
-    if [ -f "$FULL_PATH" ]; then
-        OLD_MTIME=$(stat -c %Y "$FULL_PATH")
+    log_header "Konfiguration: $MAP_NAME"
+    
+    # Liste leeren
+    > "$LIST_FILE"
+    
+    mapfile -t URLS < <(grep -vE '^\s*($|#)' "$source_file")
+    
+    if [ ${#URLS[@]} -eq 0 ]; then
+        log_warn "Keine URLs in $source_file gefunden."
+        continue
     fi
 
-    # Download starten (nur wenn remote neuer ist)
-    if wget -q --show-progress -N -P "$OUTPUT_DIR" "$LINK"; then
-        echo "✓ Download OK."
-        if [ ! -f "$FULL_PATH" ]; then
-            echo "❌ FEHLER: Datei $FULL_PATH fehlt nach Download."
-            continue
+    for LINK in "${URLS[@]}"; do
+        FILENAME=$(basename "$LINK")
+        FULL_PATH="$DOWNLOAD_BASE_DIR/$FILENAME"
+        
+        # Wir nutzen wget im Hintergrund-Modus für weniger Noise, außer es gibt Fehler
+        # -N: Nur laden wenn neuer (Timestamping)
+        log_info "Prüfe: $FILENAME"
+        
+        if wget -q -N -P "$DOWNLOAD_BASE_DIR" "$LINK"; then
+            if [ -f "$FULL_PATH" ]; then
+                echo "$FULL_PATH" >> "$LIST_FILE"
+                COUNT=$((COUNT+1))
+            else
+                 log_error "Download scheinbar ok, aber Datei fehlt: $FILENAME"
+            fi
+        else
+            log_error "Download fehlgeschlagen: $LINK"
         fi
-        NEW_MTIME=$(stat -c %Y "$FULL_PATH")
-        if [ -z "$OLD_MTIME" ] || [ "$NEW_MTIME" != "$OLD_MTIME" ]; then
-            NEW_DOWNLOADS=1
-        fi
-        # Absoluten Pfad in die Liste schreiben
-        echo "$FULL_PATH" >> "$LIST_FILE"
-    else
-        echo "❌ FEHLER beim Download von $FILENAME - Wird nicht zur Liste hinzugefügt."
-    fi
+    done
     
-    ((CURRENT++))
+    if [ -s "$LIST_FILE" ]; then
+        ENTRY_COUNT=$(wc -l < "$LIST_FILE")
+        log_success "Liste erstellt ($ENTRY_COUNT Dateien)."
+    fi
+    echo "" # Leerzeile für Abstand
 done
 
-echo ""
-echo "--------------------------------------------------"
-echo "Fertig! Die Liste der Dateien liegt hier:"
-echo "$LIST_FILE"
-if [ "$NEW_DOWNLOADS" -eq 1 ]; then
-    touch "$UPDATED_FLAG"
-    echo "Neue Dateien erkannt: Merge/PMTiles sollten neu laufen."
-else
-    echo "Keine neuen Dateien gefunden: Merge/PMTiles können übersprungen werden."
-fi
-echo "--------------------------------------------------"
+log_success "Download abgeschlossen. $COUNT Dateien bereit."

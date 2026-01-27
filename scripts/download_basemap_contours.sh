@@ -1,21 +1,35 @@
 #!/bin/bash
 set -euo pipefail
 
-CONTOURS_URL="${CONTOURS_URL:-https://cdn.basemap.at/offline/bmapvhl_vtpk_3857.vtpk}"
-CONTOURS_ID="${CONTOURS_ID:-basemap-at-contours}"
-OUTPUT_DIR="${CONTOURS_OUTPUT_DIR:-/srv/build/$CONTOURS_ID/src}"
+# Utils laden
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/utils.sh" ]; then source "$SCRIPT_DIR/utils.sh"; else source /dev/null; fi
+
+# --- KONFIGURATION ---
+# ÄNDERUNG: Ziel ist jetzt der Overlay-Ordner
+OUTPUT_DIR="${OUTPUT_DIR:-/srv/build/overlays/src}"
+
+VTPK_URL="https://cdn.basemap.at/offline/bmapvhl_vtpk_3857.vtpk"
+FILENAME="bmapvhl_vtpk_3857.vtpk"
+FULL_PATH="$OUTPUT_DIR/$FILENAME"
 FORCE_DOWNLOAD="${FORCE_DOWNLOAD:-0}"
+
+log_section "SCHRITT: DOWNLOAD CONTOURS (OVERLAY)"
 
 mkdir -p "$OUTPUT_DIR"
 
-FILENAME="$(basename "$CONTOURS_URL")"
-DEST_PATH="$OUTPUT_DIR/$FILENAME"
-
-if [ -f "$DEST_PATH" ] && [ "$FORCE_DOWNLOAD" -ne 1 ]; then
-    echo "Contours-Datei vorhanden, Download wird übersprungen: $DEST_PATH"
-    exit 0
+if [ -f "$FULL_PATH" ] && [ "$FORCE_DOWNLOAD" -eq 0 ]; then
+    log_info "Datei existiert bereits: $FULL_PATH"
+    log_info "Nutze FORCE_DOWNLOAD=1 zum Überschreiben."
+else
+    log_info "Starte Download von basemap.at..."
+    log_info "URL: $VTPK_URL"
+    log_info "Ziel: $FULL_PATH"
+    
+    if wget -q --show-progress -O "$FULL_PATH" "$VTPK_URL"; then
+        log_success "Download erfolgreich."
+    else
+        log_error "Download fehlgeschlagen."
+        exit 1
+    fi
 fi
-
-echo "Lade Basemap-Contours herunter: $CONTOURS_URL"
-wget -q --show-progress -O "$DEST_PATH" "$CONTOURS_URL"
-echo "✓ Contours-Download OK: $DEST_PATH"

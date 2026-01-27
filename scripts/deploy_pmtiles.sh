@@ -7,7 +7,7 @@ BUILD_DIR="${BUILD_DIR:-/srv/build}"
 DEFAULT_TARGETS=(
   "osm:at-plus.pmtiles"
   "basemap-at:basemap-at.pmtiles"
-  "basemap-at-contours:basemap-at-contours.pmtiles"
+  "overlays:basemap-at-contours.pmtiles"
 )
 
 if [[ -n "${PMTILES_TARGETS:-}" ]]; then

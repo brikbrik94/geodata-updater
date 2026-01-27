@@ -2,45 +2,49 @@
 set -euo pipefail
 
 # Konfiguration
-USER_NAME="${USER_NAME:-geo}"  # Dein User auf dem VPS
+USER_NAME="${USER_NAME:-geo}"
 INSTALL_DIR="${INSTALL_DIR:-/srv/scripts}"
+
+# OSM
 OSM_BUILD_DIR="${OSM_BUILD_DIR:-/srv/build/osm}"
-BASEMAP_BUILD_DIR="${BASEMAP_BUILD_DIR:-/srv/build/basemap-at}"
-CONTOURS_BUILD_DIR="${CONTOURS_BUILD_DIR:-/srv/build/basemap-at-contours}"
-OVERLAYS_BUILD_DIR="${OVERLAYS_BUILD_DIR:-/srv/build/overlays}"
 TILESET_ID="${TILESET_ID:-osm}"
-STYLE_ID="${STYLE_ID:-$TILESET_ID}"
+if [ "$TILESET_ID" == "osm" ]; then
+    STYLE_ID="${STYLE_ID:-at-plus}"
+else
+    STYLE_ID="${STYLE_ID:-$TILESET_ID}"
+fi
+
+# Basemap (Standard)
+BASEMAP_BUILD_DIR="${BASEMAP_BUILD_DIR:-/srv/build/basemap-at}"
+
+# Overlays (NEU: Hier landen jetzt auch die Contours)
+OVERLAYS_BUILD_DIR="${OVERLAYS_BUILD_DIR:-/srv/build/overlays}"
+
 TILES_DIR="${TILES_DIR:-/srv/tiles}"
 ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
-BUILD_DIR="${BUILD_DIR:-/srv/build}"
 ORS_DIR="${ORS_DIR:-/srv/ors}"
 STYLE_SOURCE="${STYLE_SOURCE:-styles/style.json}"
 SPREET_IMAGE="${SPREET_IMAGE:-ghcr.io/flother/spreet:latest}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
 STYLE_SOURCE_PATH="$REPO_ROOT/$STYLE_SOURCE"
 
 echo "=== OSM Geodata Pipeline Setup ==="
 
-# 0. Benutzer prüfen/erstellen
+# 0. Benutzer & Gruppe
 if ! id -u "$USER_NAME" >/dev/null 2>&1; then
     echo "[0] Erstelle System-User '$USER_NAME'..."
     sudo useradd --system --create-home --shell /usr/sbin/nologin "$USER_NAME"
 fi
 if getent group docker >/dev/null 2>&1; then
-    echo "[0] Füge '$USER_NAME' zur docker-Gruppe hinzu..."
     sudo usermod -aG docker "$USER_NAME"
-    echo "[0] Hinweis: Bitte neu einloggen oder 'newgrp docker' ausführen, damit die Gruppenänderung wirkt."
-else
-    echo "[0] docker-Gruppe nicht gefunden. Überspringe Gruppen-Zuweisung."
 fi
 
-# 1. Abhängigkeiten prüfen/installieren
+# 1. Pakete
 echo "[1] Installiere System-Pakete..."
 sudo apt-get update
-sudo apt-get install -y osmium-tool wget python3 python3-venv docker.io docker-cli acl unzip nodejs npm golang librsvg2-bin
+sudo apt-get install -y osmium-tool wget python3 python3-venv docker.io docker-cli acl unzip nodejs npm golang librsvg2-bin tree
 VENV_DIR="${VENV_DIR:-/srv/scripts/venv}"
 if [ ! -d "$VENV_DIR" ]; then
     sudo python3 -m venv "$VENV_DIR"
@@ -48,65 +52,55 @@ fi
 sudo "$VENV_DIR/bin/pip" install --upgrade pip pmtiles
 
 if command -v docker >/dev/null 2>&1; then
-    echo "[1] Lade spreet Docker-Image..."
     if ! sudo docker pull "$SPREET_IMAGE"; then
-        echo "[1] FEHLER: spreet Docker-Image konnte nicht geladen werden: $SPREET_IMAGE"
-        exit 1
+        echo "WARNUNG: spreet Image konnte nicht geladen werden."
     fi
-else
-    echo "[1] FEHLER: Docker nicht gefunden."
-    exit 1
 fi
 
-# 2. Ordnerstruktur erstellen
+# 2. Ordnerstruktur
 echo "[2] Erstelle Ordnerstruktur in /srv..."
-sudo mkdir -p "$INSTALL_DIR/stats"
-sudo mkdir -p "$OSM_BUILD_DIR/src"
-sudo mkdir -p "$OSM_BUILD_DIR/tmp"
-sudo mkdir -p "$OSM_BUILD_DIR/merged"
-sudo mkdir -p "$BASEMAP_BUILD_DIR/src" "$BASEMAP_BUILD_DIR/tmp"
-sudo mkdir -p "$CONTOURS_BUILD_DIR/src" "$CONTOURS_BUILD_DIR/tmp"
-sudo mkdir -p "$OVERLAYS_BUILD_DIR/src" "$OVERLAYS_BUILD_DIR/tmp"
-sudo mkdir -p "$TILES_DIR/$TILESET_ID/pmtiles"
-sudo mkdir -p "$TILES_DIR/$TILESET_ID/tilejson"
-sudo mkdir -p "$TILES_DIR/$TILESET_ID/styles/$STYLE_ID"
-sudo mkdir -p "$TILES_DIR/osm/styles/at"
-sudo mkdir -p "$TILES_DIR/osm/styles/at-plus"
-sudo mkdir -p "$TILES_DIR/basemap-at/pmtiles"
-sudo mkdir -p "$TILES_DIR/basemap-at/tilejson"
-sudo mkdir -p "$TILES_DIR/basemap-at/styles/basemap-at"
-sudo mkdir -p "$TILES_DIR/basemap-at-contours/pmtiles"
-sudo mkdir -p "$TILES_DIR/basemap-at-contours/tilejson"
-sudo mkdir -p "$TILES_DIR/basemap-at-contours/styles/basemap-at-contours"
-sudo mkdir -p "$TILES_DIR/overlays/pmtiles"
-sudo mkdir -p "$TILES_DIR/overlays/tilejson"
-sudo mkdir -p "$TILES_DIR/overlays/styles/overlay-xyz"
-sudo mkdir -p "$ASSETS_DIR/fonts" "$ASSETS_DIR/sprites"
-sudo mkdir -p /srv/info/attribution
-# ORS Struktur (damit es bereit ist für dein anderes Repo)
-sudo mkdir -p "$ORS_DIR/emergency"
-sudo mkdir -p "$ORS_DIR/graphs"
-sudo mkdir -p "$ORS_DIR/logs"
-sudo mkdir -p "$ORS_DIR/tmp"
+sudo mkdir -p "$INSTALL_DIR/stats" "$INSTALL_DIR/sources"
 
-# 3. Skripte kopieren
-echo "[3] Kopiere Skripte & Config..."
+# OSM
+sudo mkdir -p "$OSM_BUILD_DIR/src" "$OSM_BUILD_DIR/tmp" "$OSM_BUILD_DIR/merged"
+sudo mkdir -p "$TILES_DIR/$TILESET_ID/pmtiles" "$TILES_DIR/$TILESET_ID/tilejson" "$TILES_DIR/$TILESET_ID/styles/$STYLE_ID"
+
+# Basemap
+sudo mkdir -p "$BASEMAP_BUILD_DIR/src" "$BASEMAP_BUILD_DIR/tmp"
+sudo mkdir -p "$TILES_DIR/basemap-at/pmtiles" "$TILES_DIR/basemap-at/tilejson" "$TILES_DIR/basemap-at/styles/basemap-at"
+
+# Overlays (NEU: Ersetzt den alten Contours-Block)
+sudo mkdir -p "$OVERLAYS_BUILD_DIR/src" "$OVERLAYS_BUILD_DIR/tmp"
+sudo mkdir -p "$TILES_DIR/overlays/pmtiles" "$TILES_DIR/overlays/tilejson" "$TILES_DIR/overlays/styles"
+
+# Assets & ORS
+sudo mkdir -p "$ASSETS_DIR/fonts" "$ASSETS_DIR/sprites" /srv/info/attribution
+sudo mkdir -p "$ORS_DIR/emergency" "$ORS_DIR/graphs" "$ORS_DIR/logs" "$ORS_DIR/tmp"
+sudo mkdir -p /srv/styles /srv/docs
+
+# 3. Kopieren
+echo "[3] Kopiere Dateien..."
 sudo cp "$REPO_ROOT"/scripts/* "$INSTALL_DIR/"
-sudo cp "$REPO_ROOT"/conf/links.txt "$INSTALL_DIR/"
+
+if [ -d "$REPO_ROOT/conf/sources" ]; then
+    sudo cp "$REPO_ROOT"/conf/sources/*.txt "$INSTALL_DIR/sources/"
+fi
+
+if [ -d "$REPO_ROOT/styles" ]; then
+    sudo cp -r "$REPO_ROOT"/styles/* /srv/styles/
+fi
+
+if [ -d "$REPO_ROOT/docs" ]; then
+    sudo cp "$REPO_ROOT"/docs/*.md /srv/docs/
+fi
+
 if [ -f "$STYLE_SOURCE_PATH" ]; then
     sudo cp "$STYLE_SOURCE_PATH" "$TILES_DIR/$TILESET_ID/styles/$STYLE_ID/style.json"
-else
-    echo "[3] Hinweis: Kein $STYLE_SOURCE_PATH gefunden. Lege dort dein style.json ab, um es zu kopieren."
 fi
 
-# 4. Rechte setzen
+# 4. Rechte
 echo "[4] Setze Berechtigungen..."
 sudo chmod +x "$INSTALL_DIR/"*.sh
-sudo chown -R $USER_NAME:$USER_NAME /srv/tiles /srv/assets /srv/build /srv/scripts /srv/ors
-
-# 5. Docker Rechte für User (damit sudo docker nicht nötig ist, optional)
-# sudo usermod -aG docker $USER_NAME
+sudo chown -R $USER_NAME:$USER_NAME /srv/tiles /srv/assets /srv/build /srv/scripts /srv/ors /srv/docs /srv/styles
 
 echo "=== Setup fertig! ==="
-echo "Die Skripte liegen unter $INSTALL_DIR"
-echo "Du kannst jetzt starten mit: $INSTALL_DIR/start.sh"

@@ -1,99 +1,87 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
+# --- KONFIGURATION ---
 TILES_DIR="${TILES_DIR:-/srv/tiles}"
 BUILD_DIR="${BUILD_DIR:-/srv/build}"
-STYLE_ID="${STYLE_ID:-}"
+# Fallback auf das styles/ Verzeichnis im Repo-Root, falls im Build nichts liegt
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STYLES_FALLBACK_DIR="${STYLES_SOURCE_DIR:-$REPO_ROOT/styles}"
 
-deploy_stylesheets() {
-  local tileset_id="$1"
-  local styles_source_dir="$2"
-  local style_id="${3:-$tileset_id}"
-  local copied=0
+# 1. Targets definieren (Identisch zu deploy_pmtiles.sh für Konsistenz)
+DEFAULT_TARGETS=(
+  "osm:at-plus.pmtiles"
+  "basemap-at:basemap-at.pmtiles"
+  "overlays:basemap-at-contours.pmtiles"
+)
 
-  if [[ ! -d "$styles_source_dir" ]]; then
-    echo "❌ Stylesheet-Verzeichnis nicht gefunden: $styles_source_dir"
-    return 1
-  fi
-
-  if [[ -f "$styles_source_dir/style.json" ]]; then
-    local dest_dir="$TILES_DIR/$tileset_id/styles/$style_id"
-    mkdir -p "$dest_dir"
-    echo "📦 Deploye $styles_source_dir/style.json -> $dest_dir/style.json"
-    cp -f "$styles_source_dir/style.json" "$dest_dir/style.json"
-    chmod 644 "$dest_dir/style.json"
-    copied=$((copied + 1))
-  fi
-
-  if [[ -f "$styles_source_dir/root.json" ]]; then
-    local dest_dir="$TILES_DIR/$tileset_id/styles/$style_id"
-    mkdir -p "$dest_dir"
-    echo "📦 Deploye $styles_source_dir/root.json -> $dest_dir/style.json"
-    cp -f "$styles_source_dir/root.json" "$dest_dir/style.json"
-    chmod 644 "$dest_dir/style.json"
-    copied=$((copied + 1))
-  fi
-
-  mapfile -t style_files < <(find "$styles_source_dir" -mindepth 3 -maxdepth 3 -name style.json)
-  for style_file in "${style_files[@]}"; do
-    rel_path="${style_file#$styles_source_dir/}"
-    tileset="${rel_path%%/*}"
-    remainder="${rel_path#*/}"
-    style_name="${remainder%%/*}"
-
-    if [[ -z "$tileset" || -z "$style_name" || "$tileset" == "$style_name" ]]; then
-      echo "⚠️ Überspringe unerwarteten Pfad: $style_file"
-      continue
-    fi
-
-    if [[ "$tileset" != "$tileset_id" ]]; then
-      continue
-    fi
-
-    dest_dir="$TILES_DIR/$tileset/styles/$style_name"
-    mkdir -p "$dest_dir"
-    echo "📦 Deploye $style_file -> $dest_dir/style.json"
-    cp -f "$style_file" "$dest_dir/style.json"
-    chmod 644 "$dest_dir/style.json"
-    copied=$((copied + 1))
-
-  done
-
-  if [[ "$copied" -eq 0 ]]; then
-    echo "❌ Keine Stylesheets gefunden. Lege style.json in $styles_source_dir oder unter $styles_source_dir/<tileset>/<style-id>/style.json ab."
-    return 1
-  fi
-
-  echo "✅ Stylesheet Deployment abgeschlossen ($copied Datei(en)) für Tileset $tileset_id."
-}
-
-copied_total=0
-found_tilesets=0
-
-while IFS= read -r -d '' tmp_dir; do
-  tileset_id="$(basename "$(dirname "$tmp_dir")")"
-  styles_tmp_dir="$tmp_dir/styles"
-
-  if [[ -d "$styles_tmp_dir" ]]; then
-    styles_source_dir="$styles_tmp_dir"
-    echo "ℹ️ Verwende Stylesheets aus $styles_source_dir (Tileset $tileset_id)"
-  else
-    styles_source_dir="$STYLES_FALLBACK_DIR"
-    echo "ℹ️ Kein Styles-Ordner für Tileset $tileset_id gefunden, verwende Fallback $styles_source_dir"
-  fi
-
-  deploy_stylesheets "$tileset_id" "$styles_source_dir" "$STYLE_ID"
-  copied_total=$((copied_total + 1))
-  found_tilesets=1
-done < <(find "$BUILD_DIR" -mindepth 2 -maxdepth 2 -type d -name tmp -print0)
-
-if [[ "$found_tilesets" -eq 0 ]]; then
-  echo "❌ Keine Tileset-TMP-Ordner unter $BUILD_DIR gefunden."
-  exit 1
+if [[ -n "${PMTILES_TARGETS:-}" ]]; then
+  mapfile -t TARGETS <<<"${PMTILES_TARGETS}"
+else
+  TARGETS=("${DEFAULT_TARGETS[@]}")
 fi
 
-echo "✅ Stylesheet Deployment abgeschlossen für $copied_total Tileset(s)."
+echo "🎨 Start Stylesheet Deployment für ${#TARGETS[@]} Targets..."
+
+# --- HAUPTSCHLEIFE ---
+for target in "${TARGETS[@]}"; do
+  # Format prüfen (tileset:dateiname)
+  if [[ "$target" != *:* ]]; then
+    echo "⚠️  Überspringe ungültiges Target Format: $target"
+    continue
+  fi
+
+  tileset="${target%%:*}"
+  filename="${target#*:}"
+  
+  # LOGIK: Style-ID ist der Dateiname OHNE Endung
+  # at-plus.pmtiles -> at-plus
+  style_id="${filename%.*}"
+  
+  # Ziel: /srv/tiles/osm/styles/at-plus
+  dest_dir="$TILES_DIR/$tileset/styles/$style_id"
+  
+  # Quelle bestimmen:
+  # Zuerst schauen wir, ob im Build-Ordner (tmp/styles) etwas generiert wurde (z.B. bei basemap.at)
+  # Wenn nicht, nehmen wir den statischen styles/ Ordner aus dem Repo.
+  src_dir="$BUILD_DIR/$tileset/tmp/styles"
+  if [[ ! -d "$src_dir" ]]; then
+    src_dir="$STYLES_FALLBACK_DIR"
+  fi
+
+  echo "➡️  Verarbeite: $tileset -> $style_id"
+
+  # --- STYLE SUCHEN (Hierarchie) ---
+  found_style=""
+
+  # 1. Spezifischer Style für diese ID (z.B. styles/osm/at-plus/style.json)
+  if [[ -f "$src_dir/$tileset/$style_id/style.json" ]]; then
+    found_style="$src_dir/$tileset/$style_id/style.json"
+    
+  # 2. Allgemeiner Style für das Tileset (z.B. styles/osm/style.json)
+  elif [[ -f "$src_dir/$tileset/style.json" ]]; then
+    found_style="$src_dir/$tileset/style.json"
+
+  # 3. VTPK Root Datei (Spezialfall für basemap.at Extrakte)
+  elif [[ -f "$src_dir/root.json" ]]; then
+    found_style="$src_dir/root.json"
+    
+  # 4. Globaler Fallback (z.B. styles/style.json im Repo Root)
+  elif [[ -f "$src_dir/style.json" ]]; then
+    found_style="$src_dir/style.json"
+  fi
+
+  # --- KOPIEREN ---
+  if [[ -n "$found_style" ]]; then
+    mkdir -p "$dest_dir"
+    cp -f "$found_style" "$dest_dir/style.json"
+    chmod 644 "$dest_dir/style.json"
+    echo "   ✅ OK: $found_style"
+    echo "      -> $dest_dir/style.json"
+  else
+    echo "   ❌ Warnung: Kein passendes style.json in $src_dir gefunden."
+  fi
+
+done
+
+echo "✅ Stylesheet Deployment abgeschlossen."

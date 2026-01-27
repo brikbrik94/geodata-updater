@@ -1,56 +1,64 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 
-echo "== basemap.at VTPK -> PMTiles (vtpk2mbtiles) =="
+# Utils laden
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/utils.sh" ]; then source "$SCRIPT_DIR/utils.sh"; else source /dev/null; fi
+
+log_section "SCHRITT: KONVERTIERUNG BASEMAP.AT (STANDARD)"
 
 # -------------------------------------------------------------------
-# Pfade
+# Pfade & Konfiguration
 # -------------------------------------------------------------------
 BASE="${BASE:-/srv/build/basemap-at}"
 SRC="${SRC:-$BASE/src}"
 TMP="${TMP:-$BASE/tmp}"
 
+# Input
 VTPK="${VTPK:-$SRC/bmapv_vtpk_3857.vtpk}"
-RAW_DIR="${RAW_DIR:-$TMP/vtpk_extract}"
 
+# Output
 OUT_PMTILES="${OUT_PMTILES:-$TMP/basemap-at.pmtiles}"
 OUT_MBTILES="${OUT_MBTILES:-$TMP/basemap-at.mbtiles}"
-OUT_META_DIR="${OUT_META_DIR:-$TMP}"
 INFO_JSON="${INFO_JSON:-$TMP/basemap-at.json}"
-MAXZOOM="${MAXZOOM:-}"
-ATTRIBUTION="${ATTRIBUTION:-© basemap.at}"
+LOG_FILE="$TMP/vtpk2mbtiles.log"
 
-CLEANUP="${CLEANUP:-1}"
+# Tools
 TOOLS_DIR="${TOOLS_DIR:-$TMP/tools}"
 VTPK2MBTILES_URL="${VTPK2MBTILES_URL:-https://github.com/BergWerkGIS/vtpk2mbtiles/releases/download/v0.0.0.2/vtpk2mbtiles-linux-x64-v0.0.0.2.zip}"
-PMTILES_VERSION="${PMTILES_VERSION:-1.22.1}"
-PMTILES_URL="${PMTILES_URL:-https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz}"
+PMTILES_URL="${PMTILES_URL:-https://github.com/protomaps/go-pmtiles/releases/download/v1.22.1/go-pmtiles_1.22.1_Linux_x86_64.tar.gz}"
 
-command -v unzip >/dev/null 2>&1 || { echo "❌ unzip fehlt"; exit 1; }
+# Einstellungen
+MAXZOOM="${MAXZOOM:-}"
+ATTRIBUTION="${ATTRIBUTION:-© basemap.at}"
+CLEANUP="${CLEANUP:-1}"
 
-mkdir -p "$TMP"
+# Check Unzip
+command -v unzip >/dev/null 2>&1 || { log_error "unzip fehlt"; exit 1; }
+
+mkdir -p "$TMP" "$TOOLS_DIR"
 
 # -------------------------------------------------------------------
-# 1) Tools vorbereiten
+# 1. Tools vorbereiten
 # -------------------------------------------------------------------
 export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
-mkdir -p "$TOOLS_DIR"
-
+# vtpk2mbtiles
 if [[ ! -x "$TOOLS_DIR/vtpk2mbtiles" ]]; then
-  echo "⬇️ Lade vtpk2mbtiles"
+  log_info "Lade vtpk2mbtiles..."
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$VTPK2MBTILES_URL" -o "$TOOLS_DIR/vtpk2mbtiles.zip"
   else
     wget -q "$VTPK2MBTILES_URL" -O "$TOOLS_DIR/vtpk2mbtiles.zip"
   fi
-  unzip -q "$TOOLS_DIR/vtpk2mbtiles.zip" -d "$TOOLS_DIR"
+  unzip -q -o "$TOOLS_DIR/vtpk2mbtiles.zip" -d "$TOOLS_DIR"
   rm -f "$TOOLS_DIR/vtpk2mbtiles.zip"
   chmod +x "$TOOLS_DIR/vtpk2mbtiles"
 fi
 
+# pmtiles
 if [[ ! -x "$TOOLS_DIR/pmtiles" ]]; then
-  echo "⬇️ Lade pmtiles"
+  log_info "Lade pmtiles..."
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$PMTILES_URL" -o "$TOOLS_DIR/pmtiles.tar.gz"
   else
@@ -58,73 +66,93 @@ if [[ ! -x "$TOOLS_DIR/pmtiles" ]]; then
   fi
   tar -xzf "$TOOLS_DIR/pmtiles.tar.gz" -C "$TOOLS_DIR"
   rm -f "$TOOLS_DIR/pmtiles.tar.gz"
-  if [[ -f "$TOOLS_DIR/go-pmtiles" ]]; then
-    mv "$TOOLS_DIR/go-pmtiles" "$TOOLS_DIR/pmtiles"
-  fi
+  if [[ -f "$TOOLS_DIR/go-pmtiles" ]]; then mv "$TOOLS_DIR/go-pmtiles" "$TOOLS_DIR/pmtiles"; fi
   chmod +x "$TOOLS_DIR/pmtiles"
 fi
 
 # -------------------------------------------------------------------
-# 2) VTPK entpacken
+# 2. VTPK entpacken
 # -------------------------------------------------------------------
+RAW_DIR="$TMP/vtpk_extract"
+
 if [[ -d "$RAW_DIR" ]]; then
-  echo "✅ VTPK bereits entpackt: $RAW_DIR"
+  log_info "VTPK bereits entpackt: $RAW_DIR"
 else
-  echo "📦 Entpacke VTPK -> $RAW_DIR"
+  log_info "Entpacke VTPK..."
   if [[ ! -f "$VTPK" ]]; then
-    echo "❌ VTPK nicht gefunden: $VTPK"
+    log_error "VTPK nicht gefunden: $VTPK"
     exit 2
   fi
   rm -rf "$RAW_DIR"
   mkdir -p "$RAW_DIR"
+  # -q = quiet (unterdrückt die Dateiliste beim Entpacken)
   unzip -q "$VTPK" -d "$RAW_DIR"
 fi
 
 # -------------------------------------------------------------------
-# 3) VTPK -> MBTiles -> PMTiles
+# 3. Metadaten & Sprites sichern
 # -------------------------------------------------------------------
-echo "🧾 Kopiere VTPK Metadaten"
+log_info "Verarbeite Metadaten & Sprites..."
+OUT_META_DIR="$TMP"
 mkdir -p "$OUT_META_DIR"
+
+# Style extraction
 if [[ -f "$RAW_DIR/p12/resources/styles/root.json" ]]; then
   mkdir -p "$OUT_META_DIR/styles"
   cp -f "$RAW_DIR/p12/resources/styles/root.json" "$OUT_META_DIR/styles/root.json"
 fi
-if [[ -d "$RAW_DIR/p12/resources/styles" ]]; then
-  mkdir -p "$OUT_META_DIR/styles"
-  cp -a "$RAW_DIR/p12/resources/styles/." "$OUT_META_DIR/styles/"
-fi
-if [[ -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" ]]; then
-  cp -f "$RAW_DIR/p12/esriinfo/iteminfo.xml" "$OUT_META_DIR/iteminfo.xml"
-fi
+
+# Sprite extraction
 if [[ -d "$RAW_DIR/p12/resources/sprites" ]]; then
+  mkdir -p "$TMP/sprites"
   for sprite_file in sprite.json sprite.png sprite@2x.json sprite@2x.png; do
     if [[ -f "$RAW_DIR/p12/resources/sprites/$sprite_file" ]]; then
-      mkdir -p "$TMP/sprites"
       cp -f "$RAW_DIR/p12/resources/sprites/$sprite_file" "$TMP/sprites/$sprite_file"
     fi
   done
 fi
 
+# -------------------------------------------------------------------
+# 4. Konvertierung MBTiles
+# -------------------------------------------------------------------
 if [[ ! -f "$OUT_MBTILES" ]]; then
-  echo "🧱 Erzeuge MBTiles"
-  "$TOOLS_DIR/vtpk2mbtiles" "$RAW_DIR" "$OUT_MBTILES" false
+  log_info "Erzeuge MBTiles (vtpk2mbtiles)..."
+  log_info "Logs werden geschrieben nach: $LOG_FILE"
+  
+  # HIER IST DIE ÄNDERUNG: Output wird nach $LOG_FILE umgeleitet
+  if "$TOOLS_DIR/vtpk2mbtiles" "$RAW_DIR" "$OUT_MBTILES" false > "$LOG_FILE" 2>&1; then
+      log_success "MBTiles erstellt."
+  else
+      log_error "Fehler bei vtpk2mbtiles. Siehe Log: $LOG_FILE"
+      tail -n 20 "$LOG_FILE"
+      exit 1
+  fi
 else
-  echo "ℹ️ MBTiles bereits vorhanden: $OUT_MBTILES"
+  log_info "MBTiles bereits vorhanden."
 fi
 
-echo "🧠 Erzeuge PMTiles"
+# -------------------------------------------------------------------
+# 5. Konvertierung PMTiles
+# -------------------------------------------------------------------
+log_info "Erzeuge PMTiles..."
+# pmtiles output lassen wir sichtbar, da der Progress-Bar nützlich ist
 "$TOOLS_DIR/pmtiles" convert "$OUT_MBTILES" "$OUT_PMTILES"
 
 if [[ ! -f "$OUT_PMTILES" ]]; then
-  echo "❌ PMTiles Output fehlt"
+  log_error "PMTiles Output fehlt."
   exit 5
 fi
 
+# -------------------------------------------------------------------
+# 6. Metadaten JSON
+# -------------------------------------------------------------------
 CURRENT_DATE=$(date +%Y-%m-%d)
 FILE_SIZE=$(stat -c%s "$OUT_PMTILES")
 HOST_NAME=$(hostname)
 VTPK_FILENAME=$(basename "$VTPK")
 PMTILES_FILENAME=$(basename "$OUT_PMTILES")
+
+# Auto-detect Maxzoom via Python snippet
 if [[ -z "$MAXZOOM" && -f "$OUT_META_DIR/styles/root.json" ]]; then
   MAXZOOM=$(OUT_META_DIR="$OUT_META_DIR" python3 - <<'PY'
 import json
@@ -158,11 +186,13 @@ cat <<EOF > "$INFO_JSON"
 EOF
 chmod 644 "$INFO_JSON"
 
-echo "✅ Fertig"
-echo " - PMTiles : $OUT_PMTILES"
+log_success "Fertig: $OUT_PMTILES ($FILE_SIZE bytes)"
 
+# -------------------------------------------------------------------
+# 7. Cleanup
+# -------------------------------------------------------------------
 if [[ "$CLEANUP" == "1" ]]; then
-  echo "🧹 Räume temporäre Dateien auf"
+  log_info "Räume temporäre Dateien auf..."
   rm -rf "$RAW_DIR"
   rm -f "$OUT_MBTILES"
 fi
