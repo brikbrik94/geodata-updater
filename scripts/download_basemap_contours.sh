@@ -1,20 +1,27 @@
 #!/bin/bash
 set -euo pipefail
 
-# Utils laden
+# 1. Utils & Config laden
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "$SCRIPT_DIR/utils.sh" ]; then source "$SCRIPT_DIR/utils.sh"; else source /dev/null; fi
+if [ -f "$SCRIPT_DIR/utils.sh" ]; then
+    source "$SCRIPT_DIR/utils.sh"
+else
+    echo "❌ Fehler: utils.sh nicht gefunden!"
+    exit 1
+fi
 
 # --- KONFIGURATION ---
-# ÄNDERUNG: Ziel ist jetzt der Overlay-Ordner
-OUTPUT_DIR="${OUTPUT_DIR:-/srv/build/overlays/src}"
+# Wir nutzen OVERLAYS_BUILD_DIR aus der Config (Standard: /srv/build/overlays)
+# Das /src hängen wir hier an, wie in deinem Original
+BASE_DIR="${OVERLAYS_BUILD_DIR:-/srv/build/overlays}"
+OUTPUT_DIR="$BASE_DIR/src"
 
-VTPK_URL="https://cdn.basemap.at/offline/bmapvhl_vtpk_3857.vtpk"
-FILENAME="bmapvhl_vtpk_3857.vtpk"
+VTPK_URL="${CONTOURS_URL:-https://cdn.basemap.at/offline/bmapvhl_vtpk_3857.vtpk}"
+FILENAME="$(basename "$VTPK_URL")"
 FULL_PATH="$OUTPUT_DIR/$FILENAME"
 FORCE_DOWNLOAD="${FORCE_DOWNLOAD:-0}"
 
-log_section "SCHRITT: DOWNLOAD CONTOURS (OVERLAY)"
+log_section "DOWNLOAD: CONTOURS (OVERLAY)"
 
 mkdir -p "$OUTPUT_DIR"
 

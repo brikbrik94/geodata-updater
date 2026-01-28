@@ -1,13 +1,22 @@
 #!/bin/bash
 set -euo pipefail
 
-# Utils laden
+# Utils laden (lädt auch config.env)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/utils.sh"
+if [ -f "$SCRIPT_DIR/utils.sh" ]; then
+    source "$SCRIPT_DIR/utils.sh"
+else
+    echo "❌ Fehler: utils.sh nicht gefunden!"
+    exit 1
+fi
 
 # --- KONFIGURATION ---
-SOURCES_DIR="/srv/scripts/sources"
-DOWNLOAD_BASE_DIR="/srv/build/osm/src"
+# Wir nutzen die Variablen aus config.env, falls vorhanden
+# SOURCES_DIR: Wo liegen die .txt Dateien? (Standard: /srv/scripts/sources)
+SOURCES_DIR="${INSTALL_DIR:-/srv/scripts}/sources"
+
+# DOWNLOAD_BASE_DIR: Wo sollen die PBFs hin? (Standard: /srv/build/osm/src)
+DOWNLOAD_BASE_DIR="${OSM_BUILD_DIR:-/srv/build/osm}/src"
 
 log_section "SCHRITT 1: DOWNLOAD OSM DATEN"
 
@@ -22,19 +31,20 @@ mkdir -p "$DOWNLOAD_BASE_DIR"
 COUNT=0
 
 # --- HAUPTSCHLEIFE ---
+# (Ab hier deine Original-Logik)
 for source_file in "$SOURCES_DIR"/*.txt; do
     [ -e "$source_file" ] || continue
-    
+
     MAP_NAME="$(basename "$source_file" .txt)"
     LIST_FILE="$DOWNLOAD_BASE_DIR/${MAP_NAME}.list"
-    
+
     log_header "Konfiguration: $MAP_NAME"
-    
+
     # Liste leeren
     > "$LIST_FILE"
-    
+
     mapfile -t URLS < <(grep -vE '^\s*($|#)' "$source_file")
-    
+
     if [ ${#URLS[@]} -eq 0 ]; then
         log_warn "Keine URLs in $source_file gefunden."
         continue
@@ -43,11 +53,11 @@ for source_file in "$SOURCES_DIR"/*.txt; do
     for LINK in "${URLS[@]}"; do
         FILENAME=$(basename "$LINK")
         FULL_PATH="$DOWNLOAD_BASE_DIR/$FILENAME"
-        
+
         # Wir nutzen wget im Hintergrund-Modus für weniger Noise, außer es gibt Fehler
         # -N: Nur laden wenn neuer (Timestamping)
         log_info "Prüfe: $FILENAME"
-        
+
         if wget -q -N -P "$DOWNLOAD_BASE_DIR" "$LINK"; then
             if [ -f "$FULL_PATH" ]; then
                 echo "$FULL_PATH" >> "$LIST_FILE"
@@ -59,7 +69,7 @@ for source_file in "$SOURCES_DIR"/*.txt; do
             log_error "Download fehlgeschlagen: $LINK"
         fi
     done
-    
+
     if [ -s "$LIST_FILE" ]; then
         ENTRY_COUNT=$(wc -l < "$LIST_FILE")
         log_success "Liste erstellt ($ENTRY_COUNT Dateien)."
