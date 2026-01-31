@@ -15,18 +15,26 @@ echo "👉 Update Paketlisten..."
 apt-get update
 
 # 2. Pakete installieren
-# - wget/curl: Downloads
-# - osmium-tool: OSM Merging
-# - openjdk-17-jre-headless: Für Planetiler (Java)
-# - python3: Für JSON Generierung
-# - git: Falls nicht da
+# Liste basiert auf deinem ursprünglichen Setup
+# osmium-tool: Für den Merge (läuft lokal)
+# docker: Für Planetiler & ORS
+# nodejs/npm/golang/librsvg2-bin: Für Assets/Sprites (zukünftig)
 echo "👉 Installiere Pakete..."
 apt-get install -y \
     wget \
     curl \
     git \
+    unzip \
+    tree \
+    acl \
     osmium-tool \
     python3 \
-    openjdk-17-jre-headless
+    python3-venv \
+    docker.io \
+    docker-cli \
+    nodejs \
+    npm \
+    golang \
+    librsvg2-bin
 
-echo "✅ Abhängigkeiten installiert.
+echo "✅ Abhängigkeiten installiert."

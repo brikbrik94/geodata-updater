@@ -6,11 +6,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/utils.sh"
 
 # --- KONFIGURATION ---
-MERGE_DIR="/srv/build/osm/merged"
+# Pfade dynamisch aus der config.env (via utils.sh geladen)
+MERGE_DIR="${OSM_BUILD_DIR:-/srv/build/osm}/merged"
 TILESET_ID="${TILESET_ID:-osm}"
-BUILD_BASE="/srv/build/$TILESET_ID"
-BUILD_TMP="$BUILD_BASE/tmp"
-STATS_DIR="/srv/scripts/stats"
+# BUILD_BASE wird durch OSM_BUILD_DIR ersetzt/abgedeckt
+BUILD_TMP="${OSM_BUILD_DIR:-/srv/build/osm}/tmp"
+STATS_DIR="${INSTALL_DIR:-/srv/scripts}/stats"
+
 DOCKER_IMAGE="ghcr.io/onthegomap/planetiler:latest"
 USE_SUDO="${USE_SUDO:-0}"
 

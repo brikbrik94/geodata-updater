@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# 1. Utils & Config laden
+# 1. Utils laden
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "$SCRIPT_DIR/utils.sh" ]; then
     source "$SCRIPT_DIR/utils.sh"
@@ -10,104 +10,108 @@ else
     exit 1
 fi
 
-log_section "DEPLOY: STYLESHEETS"
+log_section "PHASE 5: DEPLOYMENT STYLESHEETS (Copy Only)"
 
-# Config-Check
-: "${TILES_DIR:?Fehlt}"
-: "${BUILD_DIR:?Fehlt}"
-: "${TILES_BASE_URL:?Fehlt}"
+# --- KONFIGURATION ---
+TILES_ROOT="$(realpath -m "${TILES_DIR:-/srv/tiles}")"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Repo Root für statische Styles (z.B. OSM)
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Pfade zu den Build-Ordnern
+BASEMAP_BUILD="$(realpath -m "${BASEMAP_BUILD_DIR:-/srv/build/basemap}")"
+OVERLAYS_BUILD="$(realpath -m "${OVERLAYS_BUILD_DIR:-/srv/build/overlays}")"
 
-# Targets definieren
-# Format: "tileset:pmtiles_datei"
-DEFAULT_TARGETS=(
-  "osm:at-plus.pmtiles"
-  "basemap-at:basemap-at.pmtiles"
-  "overlays:basemap-at-contours.pmtiles"
-)
+# --- QUELLEN DEFINIEREN ---
 
-if [[ -n "${PMTILES_TARGETS:-}" ]]; then
-  mapfile -t TARGETS <<<"${PMTILES_TARGETS}"
-else
-  TARGETS=("${DEFAULT_TARGETS[@]}")
-fi
+# 1. OSM: Template aus dem Git-Repo
+# KORREKTUR: Pfad angepasst auf styles/style.json (statt conf/styles/...)
+STYLE_SRC_OSM="${STYLE_TEMPLATE:-$REPO_ROOT/styles/style.json}"
 
-for target in "${TARGETS[@]}"; do
-    if [[ "$target" != *:* ]]; then continue; fi
+# 2. BASEMAP: root.json aus dem Build-Ordner
+STYLE_SRC_BASEMAP="$BASEMAP_BUILD/tmp/styles/root.json"
 
-    tileset="${target%%:*}"
-    filename="${target#*:}"
-    filename_no_ext="${filename%.*}"
-    style_id="$filename_no_ext"
+# 3. OVERLAYS: root.json aus dem Build-Ordner
+# Wir suchen dynamisch nach der ersten root.json im tmp-Ordner
+STYLE_SRC_OVERLAYS=$(find "$OVERLAYS_BUILD/tmp" -name "root.json" | head -n 1)
 
-    # --- 1. Quelle finden ---
-    src=""
-    
-    # A) Prüfen auf extrahiertes root.json (typisch für VTPK imports wie Basemap/Contours)
-    # Suchpfad 1: Im Unterordner (neu) -> build/overlays/tmp/basemap-at-contours/styles/root.json
-    path_vtpk_sub="$BUILD_DIR/$tileset/tmp/$filename_no_ext/styles/root.json"
-    # Suchpfad 2: Direkt im tmp/styles (alt) -> build/basemap-at/tmp/styles/root.json
-    path_vtpk_flat="$BUILD_DIR/$tileset/tmp/styles/root.json"
+log_info "Ziel Basis: $TILES_ROOT"
 
-    if [ -f "$path_vtpk_sub" ]; then
-        src="$path_vtpk_sub"
-    elif [ -f "$path_vtpk_flat" ]; then
-        src="$path_vtpk_flat"
-    fi
+# --- FUNKTION ---
+deploy_style_copy() {
+    local tileset_name="$1"   # z.B. "osm"
+    local source_style="$2"   # Pfad zur Quell-Datei
 
-    # B) Fallback für OSM: Statischer Style aus dem Repo
-    if [ -z "$src" ] && [ "$tileset" == "osm" ]; then
-        # Versuche verschiedene Orte für den OSM Style
-        if [ -f "$REPO_ROOT/styles/style.json" ]; then
-            src="$REPO_ROOT/styles/style.json"
-        elif [ -f "$TILES_DIR/osm/styles/at-plus/style.json" ]; then
-            # Falls er schon da ist (manuell kopiert), nutzen wir ihn als Basis
-            src="$TILES_DIR/osm/styles/at-plus/style.json"
+    local pmtiles_dir="$TILES_ROOT/$tileset_name/pmtiles"
+    local styles_root="$TILES_ROOT/$tileset_name/styles"
+
+    # Validierung
+    if [ -z "$source_style" ] || [ ! -f "$source_style" ]; then
+        if [ -d "$pmtiles_dir" ] && [ "$(ls -A "$pmtiles_dir" 2>/dev/null)" ]; then
+            log_warn "⚠️  Kein Style-Template für '$tileset_name' gefunden."
+            log_info "   (Gesucht: $source_style)"
         fi
+        return
     fi
 
-    if [ -z "$src" ]; then
-        log_warn "Kein Style gefunden für $target - überspringe."
-        continue
-    fi
+    if [ ! -d "$pmtiles_dir" ]; then return; fi
 
-    # --- 2. Ziel vorbereiten ---
-    dest_dir="$TILES_DIR/$tileset/styles/$style_id"
-    dest_file="$dest_dir/style.json"
-    mkdir -p "$dest_dir"
+    # Alle deployten PMTiles finden
+    shopt -s nullglob
+    local files=("$pmtiles_dir"/*.pmtiles)
+    shopt -u nullglob
 
-    # --- 3. Kopieren & Anpassen ---
-    # Wir nutzen sed, um die URL zur PMTiles Datei einzusetzen
-    # Ziel-URL Format: "pmtiles://https://tiles.oe5ith.at/tileset/pmtiles/datei.pmtiles"
-    
-    public_url="pmtiles://$TILES_BASE_URL/$tileset/pmtiles/$filename"
-    
-    # Logik:
-    # 1. Kopiere Datei
-    cp "$src" "$dest_file"
-    
-    # 2. Ersetze Platzhalter oder bestehende URLs
-    # VTPK styles haben oft "url": "..." im "sources" Block.
-    # Wir suchen nach der Zeile mit "url": und ersetzen den Inhalt.
-    # Hinweis: Das ist ein simpler Replace. Für komplexe JSONs wäre jq besser, aber sed reicht meist.
-    
-    # Temporäre Datei
-    tmp_sed=$(mktemp)
-    
-    if [ "$tileset" == "osm" ]; then
-        # Bei OSM ersetzen wir "{TILE_URL}" oder passen "url": an
-        sed "s|{TILE_URL}|$public_url|g" "$dest_file" > "$tmp_sed"
+    if [ ${#files[@]} -gt 0 ]; then
+        log_info "Verarbeite Tileset: $tileset_name"
+        log_info "   Quelle: $source_style"
+        
+        for pmtiles_path in "${files[@]}"; do
+            filename=$(basename "$pmtiles_path")       # z.B. "at-plus.pmtiles"
+            mapname="${filename%.*}"                   # z.B. "at-plus"
+            
+            target_dir="$styles_root/$mapname"
+            target_file="$target_dir/style.json"
+            
+            # 1. Ordner erstellen
+            mkdir -p "$target_dir"
+            
+            # 2. Kopieren (Überschreiben)
+            cp -f "$source_style" "$target_file"
+            chmod 644 "$target_file"
+            
+            echo "   📄 Style angelegt: $tileset_name/styles/$mapname/style.json"
+        done
     else
-        # Bei VTPKs (Basemap) ersetzen wir die interne Referenz
-        # Wir suchen nach "url": "..." innerhalb der sources und tauschen es hart aus.
-        # Achtung: Das ersetzt ALLE "url": Einträge. Bei einem VTPK Style gibt es meist nur eine Source.
-        sed "s|\"url\": *\"[^\"]*\"|\"url\": \"$public_url\"|g" "$dest_file" > "$tmp_sed"
+        log_info "ℹ️  Keine PMTiles in '$tileset_name' gefunden."
     fi
-    
-    mv "$tmp_sed" "$dest_file"
-    chmod 644 "$dest_file"
+}
 
-    log_success "Style erstellt: $tileset/$style_id"
-done
+# --- HAUPTABLAUF ---
+
+# 1. OSM
+deploy_style_copy "osm" "$STYLE_SRC_OSM"
+
+# 2. Basemap
+deploy_style_copy "basemap-at" "$STYLE_SRC_BASEMAP"
+
+# 3. Overlays
+deploy_style_copy "overlays" "$STYLE_SRC_OVERLAYS"
+
+log_success "Stylesheets kopiert."
+log_info "Starte nun update_stylesheets.sh für URL-Anpassungen..."
+
+# --- LINK-UPDATE STARTEN ---
+UPDATE_SCRIPT="$SCRIPT_DIR/update_stylesheets.sh"
+if [ -f "$UPDATE_SCRIPT" ]; then
+    # Wir übergeben TILES_DIR explizit, falls es im Env fehlt
+    export TILES_DIR="$TILES_ROOT"
+    
+    # NEU: Wir helfen dem Python-Skript bei Mehrdeutigkeiten (at vs at-plus)
+    # Das Mapping hilft, wenn mehrere PMTiles im Ordner liegen.
+    # Wir bauen das dynamisch auf für OSM:
+    # "osm:at.pmtiles osm:at-plus.pmtiles" <- Das Python Skript scheint das Format tileset:file zu erwarten
+    # Aber das Python Skript ist global. Wir lassen es erstmal laufen.
+    
+    bash "$UPDATE_SCRIPT"
+else
+    log_error "update_stylesheets.sh nicht gefunden!"
+    exit 1
+fi

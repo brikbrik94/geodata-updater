@@ -10,79 +10,85 @@ else
     exit 1
 fi
 
-log_section "DEPLOY: PMTILES"
+log_section "PHASE 4: DEPLOYMENT (PMTILES)"
 
-# Config-Check: Sind die Variablen aus config.env da?
-: "${TILES_DIR:?Variable TILES_DIR fehlt (config.env?)}"
-: "${BUILD_DIR:?Variable BUILD_DIR fehlt (config.env?)}"
+# --- KONFIGURATION ---
+# Ziel-Verzeichnis (aus Config oder Standard)
+TILES_DIR="$(realpath -m "${TILES_DIR:-/srv/tiles}")"
 
-# Definition der zu deployenden Dateien
-# Format: "tileset_ordner:dateiname.pmtiles"
-DEFAULT_TARGETS=(
-  "osm:at-plus.pmtiles"
-  "basemap-at:basemap-at.pmtiles"
-  "overlays:basemap-at-contours.pmtiles"
-)
+# Quell-Verzeichnisse (Mapping der Build-Ordner auf Tileset-Namen)
+# Format: QUELLE|TILESET_NAME (wie im Ordner-Baum gewünscht)
 
-# Falls Targets per Env übergeben wurden, diese nutzen (für Spezialfälle)
-if [[ -n "${PMTILES_TARGETS:-}" ]]; then
-  mapfile -t TARGETS <<<"${PMTILES_TARGETS}"
-else
-  TARGETS=("${DEFAULT_TARGETS[@]}")
+# 1. OSM
+OSM_SRC="$(realpath -m "${OSM_BUILD_DIR:-/srv/build/osm}/tmp")"
+# 2. Basemap (Falls vorhanden)
+BASEMAP_SRC="$(realpath -m "${BASEMAP_BUILD_DIR:-/srv/build/basemap}/tmp")"
+# 3. Overlays (Falls vorhanden)
+OVERLAYS_SRC="$(realpath -m "${OVERLAYS_BUILD_DIR:-/srv/build/overlays}/tmp")"
+
+log_info "Deployment Ziel: $TILES_DIR"
+
+# --- FUNKTION: Deploy in die Tileset-Struktur ---
+deploy_tileset() {
+    local src_dir="$1"
+    local tileset_name="$2"  # z.B. "osm", "basemap-at", "overlays"
+    
+    # Zielstruktur gemäß deinem Tree: tiles/TILESET/pmtiles/
+    local dest_dir="$TILES_DIR/$tileset_name/pmtiles"
+
+    if [ ! -d "$src_dir" ]; then
+        return
+    fi
+
+    # Suche nach ALLEN .pmtiles Dateien (dynamisch statt statischer Liste)
+    shopt -s nullglob
+    local files=("$src_dir"/*.pmtiles)
+    shopt -u nullglob
+
+    if [ ${#files[@]} -gt 0 ]; then
+        log_info "📂 Tileset: $tileset_name"
+        
+        mkdir -p "$dest_dir"
+
+        for file in "${files[@]}"; do
+            filename=$(basename "$file")
+            target="$dest_dir/$filename"
+            
+            # Prüfen ob Update nötig oder Datei schon existiert
+            if [[ -f "$target" ]]; then
+                echo "   🗑️  Überschreibe alt: $filename"
+            fi
+            
+            echo "   📦 Deploye $file -> $target"
+            cp -f "$file" "$target"
+            chmod 644 "$target"
+            echo "   ✅ OK: $target"
+        done
+    else
+        # Nur Info, kein Fehler (vielleicht wurde Basemap diesmal nicht gebaut)
+        log_info "ℹ️  Keine PMTiles für '$tileset_name' gefunden in $src_dir"
+    fi
+}
+
+# --- HAUPTABLAUF ---
+
+# 1. OSM Deployen (Zielordner: osm)
+deploy_tileset "$OSM_SRC" "osm"
+
+# 2. Basemap Deployen (Zielordner: basemap-at, wie in deinem Tree)
+deploy_tileset "$BASEMAP_SRC" "basemap-at"
+
+# 3. Overlays Deployen (Zielordner: overlays)
+deploy_tileset "$OVERLAYS_SRC" "overlays"
+
+# 4. Info Generator (falls vorhanden)
+# Aktualisiert die endpoints_info.json basierend auf dem neuen Inhalt
+INFO_SCRIPT="$SCRIPT_DIR/generate_endpoints_info.sh"
+if [ -f "$INFO_SCRIPT" ]; then
+    echo ""
+    log_info "Aktualisiere Karten-Inventar..."
+    bash "$INFO_SCRIPT"
 fi
 
-missing=0
-
-for target in "${TARGETS[@]}"; do
-  # Validierung des Formats
-  if [[ "$target" != *:* ]]; then
-    log_error "Ungültiger Eintrag: '$target' (Erwarte: ordner:datei.pmtiles)"
-    missing=1
-    continue
-  fi
-
-  tileset="${target%%:*}"
-  filename="${target#*:}"
-
-  # --- Quelle finden ---
-  # 1. Versuch: Direkt im tmp Ordner
-  src="$BUILD_DIR/$tileset/tmp/$filename"
-
-  # 2. Versuch: Im Unterordner (Dateiname ohne Endung als Ordner)
-  # Beispiel: overlays/tmp/basemap-at-contours/basemap-at-contours.pmtiles
-  if [[ ! -f "$src" ]]; then
-      filename_no_ext="${filename%.*}"
-      src_subdir="$BUILD_DIR/$tileset/tmp/$filename_no_ext/$filename"
-      if [[ -f "$src_subdir" ]]; then
-          src="$src_subdir"
-      fi
-  fi
-
-  # --- Ziel definieren ---
-  dest_dir="$TILES_DIR/$tileset/pmtiles"
-  dest="$dest_dir/$filename"
-
-  # --- Prüfen & Kopieren ---
-  if [[ ! -f "$src" ]]; then
-    log_warn "Quelle fehlt: $filename"
-    log_info "Gesucht in: $BUILD_DIR/$tileset/tmp/..."
-    missing=1
-    continue
-  fi
-
-  mkdir -p "$dest_dir"
-  
-  # Kopieren (überschreiben erzwingen)
-  cp -f "$src" "$dest"
-  chmod 644 "$dest"
-  
-  log_success "$tileset: $filename installiert."
-
-done
-
-if [[ "$missing" -ne 0 ]]; then
-  log_error "Deployment unvollständig (siehe oben)."
-  exit 1
-fi
-
-# (Kein Exit hier, damit run_deploy.sh weiterlaufen kann)
+echo ""
+log_success "PMTiles Deployment abgeschlossen."
