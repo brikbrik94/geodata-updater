@@ -1,62 +1,55 @@
 #!/bin/bash
 set -euo pipefail
 
-# Wo sind wir? (Git Repo Root ermitteln)
-# Wenn dieses Skript in .../geodata-updater/scripts liegt, ist REPO_DIR .../geodata-updater
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Verzeichnis dieses Skripts ermitteln
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-SCRIPTS_SRC="$REPO_DIR/scripts"
-CONFIG_SRC="$SCRIPTS_SRC/config.env"
-
-# KORREKTUR: Die Quellen liegen in conf/sources
-SOURCES_SRC="$REPO_DIR/conf/sources"
-
-# Wir laden die Config TEMPORÄR, um das Zielverzeichnis (INSTALL_DIR) zu kennen
-if [ -f "$CONFIG_SRC" ]; then
-    source "$CONFIG_SRC"
-else
-    echo "❌ Fehler: scripts/config.env im Repo nicht gefunden!"
-    exit 1
-fi
-
-# Standardfall, falls in Config nicht gesetzt
-TARGET_DIR="${INSTALL_DIR:-/srv/scripts}"
+# Zielverzeichnis auf dem Server
+TARGET_DIR="/srv/scripts"
+CONF_TARGET="/srv/conf"
 
 echo "========================================"
 echo " DEPLOY: GIT -> LIVE SYSTEM"
 echo "========================================"
-echo "Repo Root: $REPO_DIR"
+echo "Repo Root: $REPO_ROOT"
 echo "Ziel:      $TARGET_DIR"
 
+# Zielordner erstellen
 mkdir -p "$TARGET_DIR"
+mkdir -p "$CONF_TARGET"
 
-# 1. Skripte kopieren
-echo "👉 Kopiere Skripte (.sh)..."
-cp "$SCRIPTS_SRC"/*.sh "$TARGET_DIR/"
+# 1. Skripte kopieren (.sh AND .py)
+echo "👉 Kopiere Skripte (.sh und .py)..."
+# Wir kopieren Shell-Skripte und Python-Dateien
+cp "$REPO_ROOT/scripts/"*.sh "$TARGET_DIR/"
+cp "$REPO_ROOT/scripts/"*.py "$TARGET_DIR/"
 
 # 2. Config kopieren
-echo "👉 Kopiere Config (.env)..."
-cp "$SCRIPTS_SRC"/*.env "$TARGET_DIR/"
+if [ -f "$REPO_ROOT/scripts/config.env" ]; then
+    echo "👉 Kopiere Config (.env)..."
+    cp "$REPO_ROOT/scripts/config.env" "$TARGET_DIR/"
+fi
 
-# 3. Sources kopieren
-# Ziel ist weiterhin /srv/scripts/sources (damit download_osm.sh sie findet)
-SOURCES_DST="$TARGET_DIR/sources"
-
-if [ -d "$SOURCES_SRC" ]; then
+# 3. Quellen-Listen kopieren (Listen für Downloads)
+# Wir kopieren alles aus conf/sources nach /srv/conf/sources
+if [ -d "$REPO_ROOT/conf/sources" ]; then
     echo "👉 Kopiere Quellen-Listen aus conf/sources..."
-    mkdir -p "$SOURCES_DST"
-    # Kopiere nur .txt Dateien
-    cp "$SOURCES_SRC"/*.txt "$SOURCES_DST/" 2>/dev/null || echo "   (Keine .txt Dateien in conf/sources gefunden)"
-else
-    echo "⚠️  Warnung: Ordner nicht gefunden: $SOURCES_SRC"
+    mkdir -p "$CONF_TARGET/sources"
+    cp -r "$REPO_ROOT/conf/sources/"* "$CONF_TARGET/sources/"
 fi
 
-# 4. Rechte setzen
+# 4. Styles kopieren (Optional, falls du Styles im Repo hast)
+# Wir kopieren den styles ordner nach /srv/styles (oder wo du ihn brauchst)
+# Das deployment script für Styles greift ja auf das Repo zu, 
+# aber es schadet nicht, die Struktur sauber zu halten.
+# (Optional, falls gewünscht - ich lasse es hier mal simpel beim Scripts ordner)
+
+# 5. Rechte setzen
 echo "👉 Setze Ausführungsrechte..."
-chmod +x "$TARGET_DIR"/*.sh
-chmod 644 "$TARGET_DIR"/*.env
-if [ -d "$SOURCES_DST" ]; then
-    chmod 644 "$SOURCES_DST"/*.txt 2>/dev/null || true
-fi
+chmod +x "$TARGET_DIR/"*.sh
+# Python Skripte müssen nicht zwingend +x haben, wenn man sie mit "python script.py" ruft, 
+# aber schaden tut es nicht.
+chmod +x "$TARGET_DIR/"*.py 2>/dev/null || true
 
 echo "✅ Deployment erfolgreich."

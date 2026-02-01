@@ -98,6 +98,17 @@ if [ -f "$STYLE_SOURCE_PATH" ]; then
     sudo cp "$STYLE_SOURCE_PATH" "$TILES_DIR/$TILESET_ID/styles/$STYLE_ID/style.json"
 fi
 
+# --- ASSETS VORBEREITEN ---
+log_section "Assets Vorbereitung"
+if [ -f "$SCRIPT_DIR/run_assets.sh" ]; then
+    "$SCRIPT_DIR/run_assets.sh"
+else
+    log_warn "run_assets.sh nicht gefunden. Bitte Fonts und Sprites manuell prüfen."
+fi
+
+log_success "Setup vollständig abgeschlossen! Du kannst nun 'start.sh' ausführen."
+
+
 # 4. Rechte
 echo "[4] Setze Berechtigungen..."
 sudo chmod +x "$INSTALL_DIR/"*.sh
