@@ -15,10 +15,7 @@
       "type": "fill",
       "source": "ski_source",
       "source-layer": "areas_poly",
-      "paint": {
-        "fill-color": "#7fc97f",
-        "fill-opacity": 0.1
-      }
+      "paint": { "fill-color": "#7fc97f", "fill-opacity": 0.1 }
     },
     {
       "id": "ski-runs-alpine",
@@ -26,10 +23,7 @@
       "source": "ski_source",
       "source-layer": "runs_line",
       "filter": ["!=", ["get", "uses"], "nordic"],
-      "layout": {
-        "line-join": "round",
-        "line-cap": "round"
-      },
+      "layout": { "line-join": "round", "line-cap": "round" },
       "paint": {
         "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 15, 5],
         "line-color": [
@@ -50,14 +44,8 @@
       "source": "ski_source",
       "source-layer": "runs_line",
       "filter": ["==", ["get", "uses"], "nordic"],
-      "layout": {
-        "line-join": "round"
-      },
-      "paint": {
-        "line-width": 2,
-        "line-color": "#ff6600",
-        "line-dasharray": [3, 2]
-      }
+      "layout": { "line-join": "round" },
+      "paint": { "line-width": 2, "line-color": "#ff6600", "line-dasharray": [3, 2] }
     },
     {
       "id": "ski-lifts-line",
@@ -100,16 +88,12 @@
       "minzoom": 14,
       "layout": {
         "text-field": ["get", "name"],
-        "text-font": ["Arial Regular", "Arial Bold"],
+        "text-font": ["Arial Regular"],
         "text-size": 10,
         "symbol-placement": "line",
         "text-offset": [0, 1]
       },
-      "paint": {
-        "text-color": "#333",
-        "text-halo-color": "#fff",
-        "text-halo-width": 1.5
-      }
+      "paint": { "text-color": "#333", "text-halo-color": "#fff", "text-halo-width": 1.5 }
     }
   ]
 }
