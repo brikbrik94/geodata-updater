@@ -81,13 +81,14 @@ mkdir -p "$TILES_DIR/overlays/pmtiles"
 mkdir -p "$TILES_DIR/overlays/tilejson"
 
 # Contours
-if [ -f "$BUILD_DIR/basemap-at-contours.pmtiles" ]; then
-    cp -f "$BUILD_DIR/basemap-at-contours.pmtiles" "$TILES_DIR/overlays/pmtiles/"
+CONTOURS_TMP="${CONTOURS_BUILD_DIR:-/srv/build/overlays/contours}/tmp"
+if [ -f "$CONTOURS_TMP/basemap-at-contours.pmtiles" ]; then
+    cp -f "$CONTOURS_TMP/basemap-at-contours.pmtiles" "$TILES_DIR/overlays/pmtiles/"
     chmod 644 "$TILES_DIR/overlays/pmtiles/basemap-at-contours.pmtiles"
     echo "   📦 PMTiles: basemap-at-contours.pmtiles"
     
     # Metadaten-JSON für Contours (falls generiert)
-    CONTOURS_JSON="${CONTOURS_BUILD_DIR:-/srv/build/overlays/contours}/basemap-at-contours.json"
+    CONTOURS_JSON="$CONTOURS_TMP/basemap-at-contours.json"
     if [ -f "$CONTOURS_JSON" ]; then
         cp -f "$CONTOURS_JSON" "$TILES_DIR/overlays/tilejson/"
         echo "   📄 Info:    basemap-at-contours.json"
@@ -95,8 +96,9 @@ if [ -f "$BUILD_DIR/basemap-at-contours.pmtiles" ]; then
 fi
 
 # OpenSkimap
-if [ -f "$BUILD_DIR/openskimap.pmtiles" ]; then
-    cp -f "$BUILD_DIR/openskimap.pmtiles" "$TILES_DIR/overlays/pmtiles/"
+SKIMAP_TMP="${SKIMAP_BUILD_DIR:-/srv/build/overlays/openskimap}/tmp"
+if [ -f "$SKIMAP_TMP/openskimap.pmtiles" ]; then
+    cp -f "$SKIMAP_TMP/openskimap.pmtiles" "$TILES_DIR/overlays/pmtiles/"
     chmod 644 "$TILES_DIR/overlays/pmtiles/openskimap.pmtiles"
     echo "   📦 PMTiles: openskimap.pmtiles"
 fi

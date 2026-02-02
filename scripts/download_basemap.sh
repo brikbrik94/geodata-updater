@@ -45,8 +45,12 @@ if [ "$SHOULD_DOWNLOAD" -eq 1 ]; then
     log_info "Starte Download von: $BASEMAP_URL"
     log_info "Ziel: $DEST_PATH"
     
-    # -q --show-progress zeigt den Balken, aber keinen Müll
-    if wget -q --show-progress -O "$DEST_PATH" "$BASEMAP_URL"; then
+    if ! command -v aria2c >/dev/null 2>&1; then
+        log_error "aria2c nicht gefunden. Bitte installieren."
+        exit 1
+    fi
+
+    if aria2c -x16 -s16 -c -d "$OUTPUT_DIR" -o "$FILENAME" "$BASEMAP_URL"; then
         log_success "Download erfolgreich."
     else
         log_error "Download fehlgeschlagen!"

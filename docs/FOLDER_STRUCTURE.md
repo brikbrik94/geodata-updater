@@ -31,9 +31,10 @@ Dies ist die aktuelle Struktur auf dem Server (/srv), automatisch generiert am 2
 │   └── config
 ├── build
 │   ├── basemap-at
-│   ├── basemap-at-contours
 │   ├── osm
 │   └── overlays
+│       ├── contours
+│       └── openskimap
 ├── docs
 │   ├── deploy_flow.md
 │   ├── FOLDER_STRUCTURE.md
