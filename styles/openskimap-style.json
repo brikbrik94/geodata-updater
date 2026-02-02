@@ -9,7 +9,6 @@
     }
   },
   "layers": [
-    /* 1. SKI AREAS (Flächen im Hintergrund) */
     {
       "id": "ski-areas",
       "type": "fill",
@@ -20,45 +19,82 @@
         "fill-opacity": 0.1
       }
     },
-
-    /* 2. PISTEN (DOWNHILL / ALPIN) */
     {
       "id": "ski-runs-alpine",
       "type": "line",
       "source": "ski_source",
       "source-layer": "runs_line",
-      "filter": ["!=", ["get", "uses"], "nordic"],
-      "layout": { "line-join": "round", "line-cap": "round" },
+      "filter": [
+        "!=",
+        [
+          "get",
+          "uses"
+        ],
+        "nordic"
+      ],
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
       "paint": {
-        "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 15, 5],
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          10,
+          1.5,
+          15,
+          5
+        ],
         "line-color": [
-          "match", ["get", "difficulty"],
-          "novice", "#00ff00",
-          "easy", "#0000ff",
-          "intermediate", "#ff0000",
-          "advanced", "#000000",
-          "expert", "#ff00ff",
-          "#888" 
+          "match",
+          [
+            "get",
+            "difficulty"
+          ],
+          "novice",
+          "#00ff00",
+          "easy",
+          "#0000ff",
+          "intermediate",
+          "#ff0000",
+          "advanced",
+          "#000000",
+          "expert",
+          "#ff00ff",
+          "#888"
         ]
       }
     },
-
-    /* 3. LOIPEN (NORDIC / LANGLAUF) */
     {
       "id": "ski-runs-nordic",
       "type": "line",
       "source": "ski_source",
       "source-layer": "runs_line",
-      "filter": ["==", ["get", "uses"], "nordic"],
-      "layout": { "line-join": "round" },
+      "filter": [
+        "==",
+        [
+          "get",
+          "uses"
+        ],
+        "nordic"
+      ],
+      "layout": {
+        "line-join": "round"
+      },
       "paint": {
         "line-width": 2,
         "line-color": "#ff6600",
-        "line-dasharray": [3, 2]
+        "line-dasharray": [
+          3,
+          2
+        ]
       }
     },
-
-    /* 4. LIFTE (LINIEN) */
     {
       "id": "ski-lifts-line",
       "type": "line",
@@ -66,12 +102,34 @@
       "source-layer": "lifts",
       "paint": {
         "line-color": "#333",
-        "line-width": ["match", ["get", "lift_type"], "cable_car", 2, 1],
-        "line-dasharray": ["match", ["get", "lift_type"], "funicular", [1, 0], [4, 1]]
+        "line-width": [
+          "match",
+          [
+            "get",
+            "lift_type"
+          ],
+          "cable_car",
+          2,
+          1
+        ],
+        "line-dasharray": [
+          "match",
+          [
+            "get",
+            "lift_type"
+          ],
+          "funicular",
+          [
+            1,
+            0
+          ],
+          [
+            4,
+            1
+          ]
+        ]
       }
     },
-
-    /* 5. LIFT SYMBOLE (IKONEN ENTLANG DER LINIE) */
     {
       "id": "ski-lifts-icons",
       "type": "symbol",
@@ -82,19 +140,25 @@
         "symbol-placement": "line",
         "symbol-spacing": 150,
         "icon-image": [
-          "match", ["get", "lift_type"],
-          "gondola", "ski-gondola",
-          "cable_car", "ski-cable-car",
-          "chair_lift", "ski-chair-lift",
-          "funicular", "ski-funicular",
+          "match",
+          [
+            "get",
+            "lift_type"
+          ],
+          "gondola",
+          "ski-gondola",
+          "cable_car",
+          "ski-cable-car",
+          "chair_lift",
+          "ski-chair-lift",
+          "funicular",
+          "ski-funicular",
           "ski-drag-lift"
         ],
         "icon-size": 0.7,
         "icon-allow-overlap": false
       }
     },
-
-    /* 6. BESCHRIFTUNG (PISTEN & LIFTE) */
     {
       "id": "ski-labels",
       "type": "symbol",
@@ -102,10 +166,16 @@
       "source-layer": "runs_line",
       "minzoom": 14,
       "layout": {
-        "text-field": ["get", "name"],
+        "text-field": [
+          "get",
+          "name"
+        ],
         "text-size": 10,
         "symbol-placement": "line",
-        "text-offset": [0, 1]
+        "text-offset": [
+          0,
+          1
+        ]
       },
       "paint": {
         "text-color": "#333",
