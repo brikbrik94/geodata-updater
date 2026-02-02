@@ -26,7 +26,7 @@ SKIMAP_STYLE_SRC="$REPO_BASE/styles/openskimap-style.json"
 # Pfade zu den extrahierten Styles der VTPK-Dateien (liegen in den Build-Verzeichnissen)
 # Diese werden von dort in die Tiles-Struktur kopiert
 BASEMAP_STYLE_SRC="${BASEMAP_BUILD_DIR:-/srv/build/basemap-at}/tmp/styles/root.json"
-CONTOURS_STYLE_SRC="${CONTOURS_BUILD_DIR:-/srv/build/overlays/contours}/styles/root.json"
+CONTOURS_STYLE_SRC="${CONTOURS_BUILD_DIR:-/srv/build/overlays/contours}/tmp/styles/root.json"
 
 log_info "Ziel-Verzeichnis: $TILES_ROOT"
 

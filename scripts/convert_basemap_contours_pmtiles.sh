@@ -82,6 +82,14 @@ mkdir -p "$TMP_EXTRACT"
 unzip -q "$VTPK" -d "$TMP_EXTRACT"
 
 # -------------------------------------------------------------------
+# 4b. Stylesheet sichern (für Deployment)
+# -------------------------------------------------------------------
+if [[ -f "$TMP_EXTRACT/p12/resources/styles/root.json" ]]; then
+    mkdir -p "$TMP_DIR/styles"
+    cp -f "$TMP_EXTRACT/p12/resources/styles/root.json" "$TMP_DIR/styles/root.json"
+fi
+
+# -------------------------------------------------------------------
 # 5. Konvertierung: VTPK -> MBTiles -> PMTiles
 # -------------------------------------------------------------------
 log_info "Erzeuge MBTiles..."
