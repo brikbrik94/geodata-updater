@@ -35,3 +35,10 @@ else
 fi
 
 log_success "Phase 1 (Download) abgeschlossen."
+
+# 5. OpenSkimap Download (Zusatz-Overlay)
+if [ -f "$SCRIPT_DIR/download_openskimap.sh" ]; then
+    bash "$SCRIPT_DIR/download_openskimap.sh"
+else
+    log_warn "download_openskimap.sh nicht gefunden - überspringe."
+fi

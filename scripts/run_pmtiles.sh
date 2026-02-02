@@ -43,3 +43,12 @@ if [ -f "$SCRIPT_DIR/convert_basemap_contours_pmtiles.sh" ]; then
 fi
 
 log_success "Alle Konvertierungs-Schritte abgeschlossen."
+
+# ---------------------------------------------------------
+# 4. OPENSKIMAP KONVERTIEREN
+# ---------------------------------------------------------
+if [ -f "$SCRIPT_DIR/convert_openskimap_pmtiles.sh" ]; then
+    bash "$SCRIPT_DIR/convert_openskimap_pmtiles.sh"
+else
+    log_warn "convert_openskimap_pmtiles.sh nicht gefunden - überspringe."
+fi

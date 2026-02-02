@@ -11,10 +11,9 @@ else
 fi
 
 # --- KONFIGURATION ---
-# Wir nutzen OVERLAYS_BUILD_DIR aus der Config (Standard: /srv/build/overlays)
-# Das /src hängen wir hier an, wie in deinem Original
-BASE_DIR="${OVERLAYS_BUILD_DIR:-/srv/build/overlays}"
-OUTPUT_DIR="$BASE_DIR/src"
+# Nutze die spezifische Variable aus der config.env
+# Falls nicht gesetzt, Fallback auf den alten Standard-Pfad
+OUTPUT_DIR="${CONTOURS_BUILD_DIR:-$OVERLAYS_BUILD_DIR/contours}"
 
 VTPK_URL="${CONTOURS_URL:-https://cdn.basemap.at/offline/bmapvhl_vtpk_3857.vtpk}"
 FILENAME="$(basename "$VTPK_URL")"

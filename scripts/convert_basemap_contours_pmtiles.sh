@@ -1,171 +1,134 @@
 #!/bin/bash
 set -euo pipefail
 
-# Utils laden
+# 1. Utils & Config laden
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "$SCRIPT_DIR/utils.sh" ]; then source "$SCRIPT_DIR/utils.sh"; else source /dev/null; fi
+if [ -f "$SCRIPT_DIR/utils.sh" ]; then
+    source "$SCRIPT_DIR/utils.sh"
+else
+    echo "❌ Fehler: utils.sh nicht gefunden!"
+    exit 1
+fi
 
-log_section "SCHRITT: KONVERTIERUNG CONTOURS (OVERLAY)"
+log_section "CONVERT: CONTOURS -> PMTILES"
 
 # -------------------------------------------------------------------
-# Pfade (ANGEPASST AUF OVERLAYS STRUKTUR)
+# 2. Pfade (SYNCHRONISIERT MIT CONFIG.ENV & OVERLAY STRUKTUR)
 # -------------------------------------------------------------------
-# Basis ist jetzt der Overlays-Ordner
-BASE="/srv/build/overlays"
-SRC="$BASE/src"
-# WICHTIG: Eigener Unterordner im TMP, damit wir sauber bleiben
-TMP="$BASE/tmp/basemap-at-contours"
+# Wir nutzen die zentralen Variablen aus der config.env
+WORK_DIR="${CONTOURS_BUILD_DIR:-$OVERLAYS_BUILD_DIR/contours}"
+SRC_DIR="$WORK_DIR" # Die vtpk liegt direkt im Download-Ordner
+TMP_EXTRACT="$WORK_DIR/vtpk_extract"
+TOOLS_DIR="$WORK_DIR/tools"
 
-# Dateiname bleibt GLEICH wie im Original
-VTPK="${VTPK:-$SRC/bmapvhl_vtpk_3857.vtpk}"
-RAW_DIR="${RAW_DIR:-$TMP/vtpk_extract}"
+# Eingabe-Datei (aus download_basemap_contours.sh)
+VTPK="$SRC_DIR/bmapvhl_vtpk_3857.vtpk"
 
-OUT_PMTILES="${OUT_PMTILES:-$TMP/basemap-at-contours.pmtiles}"
-OUT_MBTILES="${OUT_MBTILES:-$TMP/basemap-at-contours.mbtiles}"
-# Metadaten bleiben im TMP Unterordner
-OUT_META_DIR="${OUT_META_DIR:-$TMP}"
-INFO_JSON="${INFO_JSON:-$TMP/basemap-at-contours.json}"
+# AUSGABE: Direkt in den zentralen Build-Ordner für das Deployment
+OUT_PMTILES="$BUILD_DIR/basemap-at-contours.pmtiles"
 
+# Temporäre MBTiles (wird nach Abschluss gelöscht)
+OUT_MBTILES="$WORK_DIR/temp_contours.mbtiles"
+INFO_JSON="$WORK_DIR/basemap-at-contours.json"
+
+# Einstellungen
 MAXZOOM="${MAXZOOM:-}"
 ATTRIBUTION="${ATTRIBUTION:-© basemap.at}"
 CLEANUP="${CLEANUP:-1}"
-TOOLS_DIR="${TOOLS_DIR:-$TMP/tools}"
 
-# URLs (Original)
-VTPK2MBTILES_URL="${VTPK2MBTILES_URL:-https://github.com/BergWerkGIS/vtpk2mbtiles/releases/download/v0.0.0.2/vtpk2mbtiles-linux-x64-v0.0.0.2.zip}"
-PMTILES_VERSION="${PMTILES_VERSION:-1.22.1}"
-PMTILES_URL="${PMTILES_URL:-https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz}"
+# Tool URLs
+VTPK2MBTILES_URL="https://github.com/BergWerkGIS/vtpk2mbtiles/releases/download/v0.0.0.2/vtpk2mbtiles-linux-x64-v0.0.0.2.zip"
+PMTILES_VERSION="1.22.1"
+PMTILES_URL="https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"
 
-command -v unzip >/dev/null 2>&1 || { log_error "unzip fehlt"; exit 1; }
-
-mkdir -p "$TMP"
-
-# -------------------------------------------------------------------
-# 1) Tools vorbereiten (LOGIK IDENTISCH)
-# -------------------------------------------------------------------
-export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+mkdir -p "$WORK_DIR"
 mkdir -p "$TOOLS_DIR"
 
+# -------------------------------------------------------------------
+# 3. Tools vorbereiten
+# -------------------------------------------------------------------
+export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+
 if [[ ! -x "$TOOLS_DIR/vtpk2mbtiles" ]]; then
-  log_info "Lade vtpk2mbtiles..."
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$VTPK2MBTILES_URL" -o "$TOOLS_DIR/vtpk2mbtiles.zip"
-  else
+    log_info "Lade vtpk2mbtiles herunter..."
     wget -q "$VTPK2MBTILES_URL" -O "$TOOLS_DIR/vtpk2mbtiles.zip"
-  fi
-  unzip -q "$TOOLS_DIR/vtpk2mbtiles.zip" -d "$TOOLS_DIR"
-  rm -f "$TOOLS_DIR/vtpk2mbtiles.zip"
-  chmod +x "$TOOLS_DIR/vtpk2mbtiles"
+    unzip -q "$TOOLS_DIR/vtpk2mbtiles.zip" -d "$TOOLS_DIR"
+    rm -f "$TOOLS_DIR/vtpk2mbtiles.zip"
+    chmod +x "$TOOLS_DIR/vtpk2mbtiles"
 fi
 
 if [[ ! -x "$TOOLS_DIR/pmtiles" ]]; then
-  log_info "Lade pmtiles..."
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$PMTILES_URL" -o "$TOOLS_DIR/pmtiles.tar.gz"
-  else
+    log_info "Lade pmtiles herunter..."
     wget -q "$PMTILES_URL" -O "$TOOLS_DIR/pmtiles.tar.gz"
-  fi
-  tar -xzf "$TOOLS_DIR/pmtiles.tar.gz" -C "$TOOLS_DIR"
-  rm -f "$TOOLS_DIR/pmtiles.tar.gz"
-  if [[ -f "$TOOLS_DIR/go-pmtiles" ]]; then
-    mv "$TOOLS_DIR/go-pmtiles" "$TOOLS_DIR/pmtiles"
-  fi
-  chmod +x "$TOOLS_DIR/pmtiles"
+    tar -xzf "$TOOLS_DIR/pmtiles.tar.gz" -C "$TOOLS_DIR"
+    rm -f "$TOOLS_DIR/pmtiles.tar.gz"
+    [ -f "$TOOLS_DIR/go-pmtiles" ] && mv "$TOOLS_DIR/go-pmtiles" "$TOOLS_DIR/pmtiles"
+    chmod +x "$TOOLS_DIR/pmtiles"
 fi
 
 # -------------------------------------------------------------------
-# 2) VTPK entpacken
+# 4. VTPK Verarbeitung
 # -------------------------------------------------------------------
-if [[ -d "$RAW_DIR" ]]; then
-  log_info "VTPK bereits entpackt: $RAW_DIR"
-else
-  log_info "Entpacke VTPK..."
-  if [[ ! -f "$VTPK" ]]; then
+if [[ ! -f "$VTPK" ]]; then
     log_error "VTPK nicht gefunden: $VTPK"
     exit 2
-  fi
-  rm -rf "$RAW_DIR"
-  mkdir -p "$RAW_DIR"
-  unzip -q "$VTPK" -d "$RAW_DIR"
 fi
+
+log_info "Entpacke VTPK..."
+rm -rf "$TMP_EXTRACT"
+mkdir -p "$TMP_EXTRACT"
+unzip -q "$VTPK" -d "$TMP_EXTRACT"
 
 # -------------------------------------------------------------------
-# 3) VTPK -> MBTiles -> PMTiles
+# 5. Konvertierung: VTPK -> MBTiles -> PMTiles
 # -------------------------------------------------------------------
-log_info "Kopiere VTPK Metadaten..."
-mkdir -p "$OUT_META_DIR"
+log_info "Erzeuge MBTiles..."
+"$TOOLS_DIR/vtpk2mbtiles" "$TMP_EXTRACT" "$OUT_MBTILES" false >/dev/null
 
-# Style Kopieren (Wichtig für Deployment später)
-if [[ -f "$RAW_DIR/p12/resources/styles/root.json" ]]; then
-  mkdir -p "$OUT_META_DIR/styles"
-  cp -f "$RAW_DIR/p12/resources/styles/root.json" "$OUT_META_DIR/styles/root.json"
-fi
-if [[ -d "$RAW_DIR/p12/resources/styles" ]]; then
-  mkdir -p "$OUT_META_DIR/styles"
-  cp -a "$RAW_DIR/p12/resources/styles/." "$OUT_META_DIR/styles/"
-fi
-
-# Konvertierung starten
-if [[ ! -f "$OUT_MBTILES" ]]; then
-  log_info "Erzeuge MBTiles (vtpk2mbtiles)..."
-  "$TOOLS_DIR/vtpk2mbtiles" "$RAW_DIR" "$OUT_MBTILES" false >/dev/null
-else
-  log_info "MBTiles bereits vorhanden."
-fi
-
-log_info "Erzeuge PMTiles..."
+log_info "Konvertiere zu PMTiles: $OUT_PMTILES"
 "$TOOLS_DIR/pmtiles" convert "$OUT_MBTILES" "$OUT_PMTILES" >/dev/null
 
 if [[ ! -f "$OUT_PMTILES" ]]; then
-  log_error "PMTiles Output fehlt."
-  exit 5
+    log_error "Konvertierung fehlgeschlagen, $OUT_PMTILES wurde nicht erstellt."
+    exit 5
 fi
 
-# Metadaten JSON schreiben (IDENTISCH)
-CURRENT_DATE=$(date +%Y-%m-%d)
-FILE_SIZE=$(stat -c%s "$OUT_PMTILES")
-HOST_NAME=$(hostname)
-VTPK_FILENAME=$(basename "$VTPK")
-PMTILES_FILENAME=$(basename "$OUT_PMTILES")
-
-# Maxzoom ermitteln via Python snippet
-if [[ -z "$MAXZOOM" && -f "$OUT_META_DIR/styles/root.json" ]]; then
-  MAXZOOM=$(OUT_META_DIR="$OUT_META_DIR" python3 - <<'PY'
-import json
-import os
-import pathlib
-root = pathlib.Path(os.environ["OUT_META_DIR"]) / "styles" / "root.json"
+# -------------------------------------------------------------------
+# 6. Metadaten & Info-JSON
+# -------------------------------------------------------------------
+# Maxzoom aus root.json ermitteln falls vorhanden
+if [[ -z "$MAXZOOM" && -f "$TMP_EXTRACT/p12/resources/styles/root.json" ]]; then
+    MAXZOOM=$(python3 - <<'PY'
+import json, os
 try:
-    data = json.loads(root.read_text(encoding="utf-8"))
-    value = data.get("maxzoom")
-    if isinstance(value, int):
-        print(value)
-except Exception:
-    pass
+    with open('vtpk_extract/p12/resources/styles/root.json', 'r') as f:
+        print(json.load(f).get('maxzoom', 14))
+except: print(14)
 PY
 )
 fi
 MAXZOOM="${MAXZOOM:-14}"
 
+# Info-Datei für die Pipeline-Statistik erstellen
 cat <<EOF > "$INFO_JSON"
 {
-  "name": "basemap.at contours (PMTiles)",
-  "source_vtpk": "$VTPK_FILENAME",
-  "dataset_date": "$CURRENT_DATE",
+  "name": "basemap.at contours",
+  "source": "$(basename "$VTPK")",
+  "updated": "$(date +%Y-%m-%d)",
   "maxzoom": $MAXZOOM,
-  "pmtiles_file": "$PMTILES_FILENAME",
-  "pmtiles_path": "$OUT_PMTILES",
-  "pmtiles_size_bytes": $FILE_SIZE,
-  "built_from_host": "$HOST_NAME",
+  "file": "$(basename "$OUT_PMTILES")",
+  "size_bytes": $(stat -c%s "$OUT_PMTILES"),
   "attribution": "$ATTRIBUTION"
 }
 EOF
-chmod 644 "$INFO_JSON"
 
-log_success "Fertig: $OUT_PMTILES ($FILE_SIZE bytes)"
+log_success "Contours PMTiles erfolgreich erstellt: $(basename "$OUT_PMTILES")"
 
+# -------------------------------------------------------------------
+# 7. Cleanup
+# -------------------------------------------------------------------
 if [[ "$CLEANUP" == "1" ]]; then
-  log_info "Räume temporäre Dateien auf..."
-  rm -rf "$RAW_DIR"
-  rm -f "$OUT_MBTILES"
+    log_info "Räume temporäre Daten auf..."
+    rm -rf "$TMP_EXTRACT"
+    rm -f "$OUT_MBTILES"
 fi

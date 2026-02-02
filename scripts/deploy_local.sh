@@ -8,6 +8,7 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 # Zielverzeichnis auf dem Server
 TARGET_DIR="/srv/scripts"
 CONF_TARGET="/srv/conf"
+STYLE_TARGET="/srv/styles"
 
 echo "========================================"
 echo " DEPLOY: GIT -> LIVE SYSTEM"
@@ -18,10 +19,10 @@ echo "Ziel:      $TARGET_DIR"
 # Zielordner erstellen
 mkdir -p "$TARGET_DIR"
 mkdir -p "$CONF_TARGET"
+mkdir -p "$STYLE_TARGET"
 
 # 1. Skripte kopieren (.sh AND .py)
 echo "👉 Kopiere Skripte (.sh und .py)..."
-# Wir kopieren Shell-Skripte und Python-Dateien
 cp "$REPO_ROOT/scripts/"*.sh "$TARGET_DIR/"
 cp "$REPO_ROOT/scripts/"*.py "$TARGET_DIR/"
 
@@ -32,24 +33,22 @@ if [ -f "$REPO_ROOT/scripts/config.env" ]; then
 fi
 
 # 3. Quellen-Listen kopieren (Listen für Downloads)
-# Wir kopieren alles aus conf/sources nach /srv/conf/sources
 if [ -d "$REPO_ROOT/conf/sources" ]; then
     echo "👉 Kopiere Quellen-Listen aus conf/sources..."
     mkdir -p "$CONF_TARGET/sources"
     cp -r "$REPO_ROOT/conf/sources/"* "$CONF_TARGET/sources/"
 fi
 
-# 4. Styles kopieren (Optional, falls du Styles im Repo hast)
-# Wir kopieren den styles ordner nach /srv/styles (oder wo du ihn brauchst)
-# Das deployment script für Styles greift ja auf das Repo zu, 
-# aber es schadet nicht, die Struktur sauber zu halten.
-# (Optional, falls gewünscht - ich lasse es hier mal simpel beim Scripts ordner)
+# 4. Styles kopieren (NEU)
+# Kopiert osm-style.json und openskimap-style.json nach /srv/styles
+if [ -d "$REPO_ROOT/styles" ]; then
+    echo "👉 Kopiere Styles nach $STYLE_TARGET..."
+    cp -r "$REPO_ROOT/styles/"* "$STYLE_TARGET/"
+fi
 
 # 5. Rechte setzen
 echo "👉 Setze Ausführungsrechte..."
 chmod +x "$TARGET_DIR/"*.sh
-# Python Skripte müssen nicht zwingend +x haben, wenn man sie mit "python script.py" ruft, 
-# aber schaden tut es nicht.
 chmod +x "$TARGET_DIR/"*.py 2>/dev/null || true
 
 echo "✅ Deployment erfolgreich."

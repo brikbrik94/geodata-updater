@@ -4,7 +4,7 @@
   "sources": {
     "ski_source": {
       "type": "vector",
-      "url": "pmtiles://https://dein-server.de/openskidata.pmtiles",
+      "url": "pmtiles://{TILES_BASE_URL}/openskimap.pmtiles",
       "attribution": "OpenSkiMap.org"
     }
   },
