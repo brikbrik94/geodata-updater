@@ -35,7 +35,7 @@ Das System enthält spezielle Logik für österreichische Regierungsdaten.
 
 - **Force Download:** Kann mit `FORCE_DOWNLOAD=1` erzwungen werden.
 
-- **Ziel:** `/srv/build/basemap-at-contours/src/bmapvhl_vtpk_3857.vtpk`
+- **Ziel:** `/srv/build/overlays/contours/src/bmapvhl_vtpk_3857.vtpk`
 
 
 
@@ -138,4 +138,3 @@ Die Pipeline besteht aus modularen Skripten, die einzeln nutzbar sind:
   - Konvertiert `.osm.pbf` -> `.pmtiles`.
 
   - Generiert Metadaten-JSON.
-

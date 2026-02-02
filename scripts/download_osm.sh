@@ -54,11 +54,15 @@ for source_file in "$SOURCES_DIR"/*.txt; do
         FILENAME=$(basename "$LINK")
         FULL_PATH="$DOWNLOAD_BASE_DIR/$FILENAME"
 
-        # Wir nutzen wget im Hintergrund-Modus für weniger Noise, außer es gibt Fehler
-        # -N: Nur laden wenn neuer (Timestamping)
+        # Wir nutzen aria2c für parallele Downloads
         log_info "Prüfe: $FILENAME"
 
-        if wget -q -N -P "$DOWNLOAD_BASE_DIR" "$LINK"; then
+        if ! command -v aria2c >/dev/null 2>&1; then
+            log_error "aria2c nicht gefunden. Bitte installieren."
+            exit 1
+        fi
+
+        if aria2c --conditional-get=true -x16 -s16 -c -d "$DOWNLOAD_BASE_DIR" -o "$FILENAME" "$LINK"; then
             if [ -f "$FULL_PATH" ]; then
                 echo "$FULL_PATH" >> "$LIST_FILE"
                 COUNT=$((COUNT+1))

@@ -13,7 +13,8 @@ fi
 # --- KONFIGURATION ---
 # Nutze die spezifische Variable aus der config.env
 # Falls nicht gesetzt, Fallback auf den alten Standard-Pfad
-OUTPUT_DIR="${CONTOURS_BUILD_DIR:-$OVERLAYS_BUILD_DIR/contours}"
+BASE_DIR="${CONTOURS_BUILD_DIR:-$OVERLAYS_BUILD_DIR/contours}"
+OUTPUT_DIR="$BASE_DIR/src"
 
 VTPK_URL="${CONTOURS_URL:-https://cdn.basemap.at/offline/bmapvhl_vtpk_3857.vtpk}"
 FILENAME="$(basename "$VTPK_URL")"
@@ -32,7 +33,12 @@ else
     log_info "URL: $VTPK_URL"
     log_info "Ziel: $FULL_PATH"
     
-    if wget -q --show-progress -O "$FULL_PATH" "$VTPK_URL"; then
+    if ! command -v aria2c >/dev/null 2>&1; then
+        log_error "aria2c nicht gefunden. Bitte installieren."
+        exit 1
+    fi
+
+    if aria2c -x16 -s16 -c -d "$OUTPUT_DIR" -o "$FILENAME" "$VTPK_URL"; then
         log_success "Download erfolgreich."
     else
         log_error "Download fehlgeschlagen."

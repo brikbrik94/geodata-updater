@@ -17,19 +17,20 @@ log_section "CONVERT: CONTOURS -> PMTILES"
 # -------------------------------------------------------------------
 # Wir nutzen die zentralen Variablen aus der config.env
 WORK_DIR="${CONTOURS_BUILD_DIR:-$OVERLAYS_BUILD_DIR/contours}"
-SRC_DIR="$WORK_DIR" # Die vtpk liegt direkt im Download-Ordner
-TMP_EXTRACT="$WORK_DIR/vtpk_extract"
+SRC_DIR="$WORK_DIR/src"
+TMP_DIR="$WORK_DIR/tmp"
+TMP_EXTRACT="$TMP_DIR/vtpk_extract"
 TOOLS_DIR="$WORK_DIR/tools"
 
 # Eingabe-Datei (aus download_basemap_contours.sh)
 VTPK="$SRC_DIR/bmapvhl_vtpk_3857.vtpk"
 
-# AUSGABE: Direkt in den zentralen Build-Ordner für das Deployment
-OUT_PMTILES="$BUILD_DIR/basemap-at-contours.pmtiles"
+# AUSGABE: Im tmp-Ordner des Overlays
+OUT_PMTILES="$TMP_DIR/basemap-at-contours.pmtiles"
 
 # Temporäre MBTiles (wird nach Abschluss gelöscht)
-OUT_MBTILES="$WORK_DIR/temp_contours.mbtiles"
-INFO_JSON="$WORK_DIR/basemap-at-contours.json"
+OUT_MBTILES="$TMP_DIR/temp_contours.mbtiles"
+INFO_JSON="$TMP_DIR/basemap-at-contours.json"
 
 # Einstellungen
 MAXZOOM="${MAXZOOM:-}"
@@ -41,7 +42,8 @@ VTPK2MBTILES_URL="https://github.com/BergWerkGIS/vtpk2mbtiles/releases/download/
 PMTILES_VERSION="1.22.1"
 PMTILES_URL="https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"
 
-mkdir -p "$WORK_DIR"
+mkdir -p "$SRC_DIR"
+mkdir -p "$TMP_DIR"
 mkdir -p "$TOOLS_DIR"
 
 # -------------------------------------------------------------------
@@ -98,12 +100,16 @@ fi
 # -------------------------------------------------------------------
 # Maxzoom aus root.json ermitteln falls vorhanden
 if [[ -z "$MAXZOOM" && -f "$TMP_EXTRACT/p12/resources/styles/root.json" ]]; then
-    MAXZOOM=$(python3 - <<'PY'
-import json, os
+    MAXZOOM=$(TMP_EXTRACT="$TMP_EXTRACT" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+root = Path(os.environ["TMP_EXTRACT"]) / "p12" / "resources" / "styles" / "root.json"
 try:
-    with open('vtpk_extract/p12/resources/styles/root.json', 'r') as f:
-        print(json.load(f).get('maxzoom', 14))
-except: print(14)
+    print(json.loads(root.read_text(encoding="utf-8")).get("maxzoom", 14))
+except Exception:
+    print(14)
 PY
 )
 fi

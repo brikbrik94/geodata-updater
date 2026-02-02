@@ -44,7 +44,7 @@ fi
 # 1. Pakete
 echo "[1] Installiere System-Pakete..."
 sudo apt-get update
-sudo apt-get install -y osmium-tool wget python3 python3-venv docker.io docker-cli acl unzip nodejs npm golang librsvg2-bin tree
+sudo apt-get install -y aria2 osmium-tool wget python3 python3-venv docker.io docker-cli acl unzip nodejs npm golang librsvg2-bin tree
 VENV_DIR="${VENV_DIR:-/srv/scripts/venv}"
 if [ ! -d "$VENV_DIR" ]; then
     sudo python3 -m venv "$VENV_DIR"
@@ -70,7 +70,8 @@ sudo mkdir -p "$BASEMAP_BUILD_DIR/src" "$BASEMAP_BUILD_DIR/tmp"
 sudo mkdir -p "$TILES_DIR/basemap-at/pmtiles" "$TILES_DIR/basemap-at/tilejson" "$TILES_DIR/basemap-at/styles/basemap-at"
 
 # Overlays (NEU: Ersetzt den alten Contours-Block)
-sudo mkdir -p "$OVERLAYS_BUILD_DIR/src" "$OVERLAYS_BUILD_DIR/tmp"
+sudo mkdir -p "$OVERLAYS_BUILD_DIR/contours/src" "$OVERLAYS_BUILD_DIR/contours/tmp"
+sudo mkdir -p "$OVERLAYS_BUILD_DIR/openskimap/src" "$OVERLAYS_BUILD_DIR/openskimap/tmp"
 sudo mkdir -p "$TILES_DIR/overlays/pmtiles" "$TILES_DIR/overlays/tilejson" "$TILES_DIR/overlays/styles"
 
 # Assets & ORS

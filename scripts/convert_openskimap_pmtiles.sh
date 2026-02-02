@@ -12,11 +12,15 @@ fi
 
 log_section "CONVERT: OPENSKIMAP -> PMTILES"
 
+BASE_DIR="${SKIMAP_BUILD_DIR:-$OVERLAYS_BUILD_DIR/openskimap}"
+SRC_DIR="$BASE_DIR/src"
+TMP_DIR="$BASE_DIR/tmp"
+
 # 2. Pfade definieren
 # Quelldatei aus dem Download-Schritt
-INPUT_FILE="$SKIMAP_BUILD_DIR/openskidata.gpkg"
-# Ziel im allgemeinen Build-Ordner (für das spätere Deployment)
-OUTPUT_PMTILES="$BUILD_DIR/openskimap.pmtiles"
+INPUT_FILE="$SRC_DIR/openskidata.gpkg"
+# Ziel im tmp-Ordner des Overlays
+OUTPUT_PMTILES="$TMP_DIR/openskimap.pmtiles"
 
 if [ ! -f "$INPUT_FILE" ]; then
     log_error "Eingabedatei nicht gefunden: $INPUT_FILE"
@@ -24,7 +28,8 @@ if [ ! -f "$INPUT_FILE" ]; then
 fi
 
 # In den Arbeitsordner wechseln für temporäre Dateien
-cd "$SKIMAP_BUILD_DIR"
+mkdir -p "$TMP_DIR"
+cd "$TMP_DIR"
 
 # 3. Extraktion der Layer (GeoJSONSeq für Tippecanoe)
 log_info "Extrahiere Layer aus GeoPackage..."
