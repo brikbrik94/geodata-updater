@@ -9,91 +9,1252 @@
       "attribution": "OpenSkiMap.org"
     }
   },
-  "layers": [
+   "layers": [
     {
-      "id": "ski-areas",
+      "id": "ski-areas-polygons",
       "type": "fill",
-      "source": "ski_source",
-      "source-layer": "areas_poly",
-      "paint": { "fill-color": "#7fc97f", "fill-opacity": 0.1 }
-    },
-    {
-      "id": "ski-runs-alpine",
-      "type": "line",
-      "source": "ski_source",
-      "source-layer": "runs_line",
-      "filter": ["!=", ["get", "uses"], "nordic"],
-      "layout": { "line-join": "round", "line-cap": "round" },
+      "source": "openskimap",
+      "source-layer": "ski_areas_multipolygon",
+      "minzoom": 8,
       "paint": {
-        "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 15, 5],
-        "line-color": [
+        "fill-color": [
           "match",
-          ["get", "difficulty"],
-          "novice", "#00ff00",
-          "easy", "#0000ff",
-          "intermediate", "#ff0000",
-          "advanced", "#000000",
-          "expert", "#ff00ff",
-          "#888"
+          [
+            "get",
+            "status"
+          ],
+          "operating",
+          "rgba(200, 230, 255, 0.15)",
+          "abandoned",
+          "rgba(150, 150, 150, 0.1)",
+          "proposed",
+          "rgba(255, 230, 200, 0.1)",
+          "rgba(220, 240, 255, 0.12)"
+        ],
+        "fill-outline-color": [
+          "match",
+          [
+            "get",
+            "status"
+          ],
+          "operating",
+          "#4a90d9",
+          "abandoned",
+          "#888888",
+          "proposed",
+          "#d9a04a",
+          "#6ab0e8"
         ]
       }
     },
     {
-      "id": "ski-runs-nordic",
+      "id": "ski-areas-outline",
       "type": "line",
-      "source": "ski_source",
-      "source-layer": "runs_line",
-      "filter": ["==", ["get", "uses"], "nordic"],
-      "layout": { "line-join": "round" },
-      "paint": { "line-width": 2, "line-color": "#ff6600", "line-dasharray": [3, 2] }
-    },
-    {
-      "id": "ski-lifts-line",
-      "type": "line",
-      "source": "ski_source",
-      "source-layer": "lifts",
+      "source": "openskimap",
+      "source-layer": "ski_areas_multipolygon",
+      "minzoom": 8,
       "paint": {
-        "line-color": "#333",
-        "line-width": ["match", ["get", "lift_type"], "cable_car", 2, 1],
-        "line-dasharray": ["match", ["get", "lift_type"], "funicular", [1, 0], [4, 1]]
+        "line-color": [
+          "match",
+          [
+            "get",
+            "status"
+          ],
+          "operating",
+          "#4a90d9",
+          "abandoned",
+          "#888888",
+          "proposed",
+          "#d9a04a",
+          "#6ab0e8"
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          8,
+          1,
+          12,
+          2,
+          16,
+          3
+        ],
+        "line-opacity": 0.6,
+        "line-dasharray": [
+          "match",
+          [
+            "get",
+            "status"
+          ],
+          "abandoned",
+          [
+            4,
+            2
+          ],
+          "proposed",
+          [
+            2,
+            2
+          ],
+          [
+            1,
+            0
+          ]
+        ]
       }
     },
     {
-      "id": "ski-lifts-icons",
-      "type": "symbol",
-      "source": "ski_source",
-      "source-layer": "lifts",
+      "id": "runs-polygons-background",
+      "type": "fill",
+      "source": "openskimap",
+      "source-layer": "runs_multipolygon",
+      "minzoom": 10,
+      "paint": {
+        "fill-color": [
+          "match",
+          [
+            "get",
+            "difficulty"
+          ],
+          "novice",
+          "rgba(0, 200, 0, 0.15)",
+          "easy",
+          "rgba(50, 100, 255, 0.15)",
+          "intermediate",
+          "rgba(255, 50, 50, 0.15)",
+          "advanced",
+          "rgba(0, 0, 0, 0.15)",
+          "expert",
+          "rgba(255, 150, 0, 0.15)",
+          "freeride",
+          "rgba(255, 255, 50, 0.15)",
+          "rgba(150, 150, 150, 0.1)"
+        ],
+        "fill-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          10,
+          0.3,
+          14,
+          0.5
+        ]
+      }
+    },
+    {
+      "id": "runs-lines-casing",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "runs_linestring",
+      "minzoom": 11,
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          2.5,
+          13,
+          4,
+          15,
+          7,
+          18,
+          12
+        ],
+        "line-opacity": 0.8
+      }
+    },
+    {
+      "id": "runs-lines-alpine",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "!=",
+        [
+          "get",
+          "uses"
+        ],
+        "nordic"
+      ],
+      "minzoom": 11,
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          1.5,
+          13,
+          2.5,
+          15,
+          5,
+          18,
+          9
+        ],
+        "line-color": [
+          "match",
+          [
+            "get",
+            "difficulty"
+          ],
+          "novice",
+          "#00d000",
+          "easy",
+          "#0080ff",
+          "intermediate",
+          "#ff4040",
+          "advanced",
+          "#404040",
+          "expert",
+          "#ff8800",
+          "freeride",
+          "#ffcc00",
+          "extreme",
+          "#404040",
+          "#999999"
+        ],
+        "line-opacity": [
+          "case",
+          [
+            "==",
+            [
+              "get",
+              "status"
+            ],
+            "abandoned"
+          ],
+          0.4,
+          [
+            "==",
+            [
+              "get",
+              "status"
+            ],
+            "proposed"
+          ],
+          0.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "runs-lines-nordic",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "==",
+        [
+          "get",
+          "uses"
+        ],
+        "nordic"
+      ],
+      "minzoom": 11,
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          1.5,
+          13,
+          2.5,
+          15,
+          4,
+          18,
+          7
+        ],
+        "line-color": [
+          "match",
+          [
+            "get",
+            "difficulty"
+          ],
+          "novice",
+          "#00d000",
+          "easy",
+          "#0080ff",
+          "intermediate",
+          "#ff4040",
+          "advanced",
+          "#404040",
+          "expert",
+          "#ff8800",
+          "#0080ff"
+        ],
+        "line-opacity": [
+          "case",
+          [
+            "==",
+            [
+              "get",
+              "status"
+            ],
+            "abandoned"
+          ],
+          0.4,
+          [
+            "==",
+            [
+              "get",
+              "status"
+            ],
+            "proposed"
+          ],
+          0.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "runs-lines-winter-hiking",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "all",
+        [
+          "in",
+          "hike",
+          [
+            "get",
+            "uses"
+          ]
+        ],
+        [
+          "!",
+          [
+            "in",
+            "downhill",
+            [
+              "get",
+              "uses"
+            ]
+          ]
+        ]
+      ],
+      "minzoom": 11,
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          1.5,
+          13,
+          2.5,
+          15,
+          4,
+          18,
+          7
+        ],
+        "line-color": "#00d000",
+        "line-dasharray": [
+          3,
+          2
+        ],
+        "line-opacity": [
+          "case",
+          [
+            "==",
+            [
+              "get",
+              "status"
+            ],
+            "abandoned"
+          ],
+          0.4,
+          [
+            "==",
+            [
+              "get",
+              "status"
+            ],
+            "proposed"
+          ],
+          0.5,
+          1
+        ]
+      }
+    },
+    {
+      "id": "runs-grooming-overlay",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "==",
+        [
+          "get",
+          "grooming"
+        ],
+        "backcountry"
+      ],
       "minzoom": 13,
       "layout": {
-        "symbol-placement": "line",
-        "symbol-spacing": 150,
-        "icon-image": [
-          "match",
-          ["get", "lift_type"],
-          "gondola", "ski-gondola",
-          "cable_car", "ski-cable-car",
-          "chair_lift", "ski-chair-lift",
-          "funicular", "ski-funicular",
-          "ski-drag-lift"
+        "line-join": "round"
+      },
+      "paint": {
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          1,
+          15,
+          2,
+          18,
+          3
         ],
-        "icon-size": 0.7,
-        "icon-allow-overlap": false
+        "line-color": "#ffffff",
+        "line-dasharray": [
+          1,
+          3
+        ],
+        "line-opacity": 0.6
       }
     },
     {
-      "id": "ski-labels",
+      "id": "runs-lit-overlay",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "==",
+        [
+          "get",
+          "lit"
+        ],
+        1
+      ],
+      "minzoom": 13,
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-width": 1,
+        "line-color": "#ffff00",
+        "line-dasharray": [
+          2,
+          4
+        ],
+        "line-opacity": 0.8
+      }
+    },
+    {
+      "id": "lifts-casing",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "lifts_linestring",
+      "minzoom": 11,
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          2,
+          13,
+          3.5,
+          15,
+          5,
+          18,
+          8
+        ],
+        "line-opacity": 0.9
+      }
+    },
+    {
+      "id": "lifts-lines",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "lifts_linestring",
+      "minzoom": 11,
+      "paint": {
+        "line-color": "#000000",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          1,
+          13,
+          2,
+          15,
+          3.5,
+          18,
+          6
+        ],
+        "line-dasharray": [
+          "match",
+          [
+            "get",
+            "lift_type"
+          ],
+          "gondola",
+          [
+            1,
+            0
+          ],
+          "cable_car",
+          [
+            1,
+            0
+          ],
+          "funicular",
+          [
+            1,
+            0
+          ],
+          "chair_lift",
+          [
+            6,
+            2
+          ],
+          "drag_lift",
+          [
+            4,
+            2
+          ],
+          "t-bar",
+          [
+            4,
+            2
+          ],
+          "j-bar",
+          [
+            4,
+            2
+          ],
+          "platter",
+          [
+            4,
+            2
+          ],
+          "rope_tow",
+          [
+            2,
+            2
+          ],
+          "magic_carpet",
+          [
+            1,
+            0
+          ],
+          [
+            4,
+            2
+          ]
+        ],
+        "line-opacity": [
+          "case",
+          [
+            "==",
+            [
+              "get",
+              "status"
+            ],
+            "abandoned"
+          ],
+          0.3,
+          [
+            "==",
+            [
+              "get",
+              "status"
+            ],
+            "proposed"
+          ],
+          0.4,
+          0.95
+        ]
+      }
+    },
+    {
+      "id": "lifts-detachable-marker",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "lifts_linestring",
+      "filter": [
+        "==",
+        [
+          "get",
+          "detachable"
+        ],
+        1
+      ],
+      "minzoom": 13,
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": 1,
+        "line-dasharray": [
+          1,
+          5
+        ],
+        "line-opacity": 0.7
+      }
+    },
+    {
+      "id": "lifts-heating-marker",
+      "type": "line",
+      "source": "openskimap",
+      "source-layer": "lifts_linestring",
+      "filter": [
+        "==",
+        [
+          "get",
+          "heating"
+        ],
+        1
+      ],
+      "minzoom": 14,
+      "paint": {
+        "line-color": "#ff6600",
+        "line-width": 0.5,
+        "line-dasharray": [
+          1,
+          6
+        ],
+        "line-opacity": 0.8
+      }
+    },
+    {
+      "id": "lifts-icons",
       "type": "symbol",
-      "source": "ski_source",
-      "source-layer": "runs_line",
+      "source": "openskimap",
+      "source-layer": "lifts_linestring",
+      "minzoom": 13,
+      "filter": [
+        "!=",
+        [
+          "get",
+          "status"
+        ],
+        "abandoned"
+      ],
+      "layout": {
+        "symbol-placement": "line",
+        "symbol-spacing": 200,
+        "icon-image": [
+          "step",
+          [
+            "zoom"
+          ],
+          "",
+          13,
+          [
+            "match",
+            [
+              "get",
+              "lift_type"
+            ],
+            "gondola",
+            "ski-gondola",
+            "cable_car",
+            "ski-cable-car",
+            "funicular",
+            "ski-funicular",
+            "chair_lift",
+            [
+              "match",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "occupancy"
+                ],
+                4
+              ],
+              1,
+              "ski-chairlift-1",
+              2,
+              "ski-chairlift-2",
+              3,
+              "ski-chairlift-3",
+              4,
+              "ski-chairlift-4",
+              6,
+              "ski-chairlift-6",
+              8,
+              "ski-chairlift-8",
+              "ski-chairlift-4"
+            ],
+            [
+              "drag_lift",
+              "t-bar"
+            ],
+            "ski-drag-lift-tbar",
+            [
+              "platter",
+              "j-bar"
+            ],
+            "ski-drag-lift-platter",
+            "rope_tow",
+            "ski-rope-tow",
+            "magic_carpet",
+            "ski-magic-carpet",
+            "ski-drag-lift-tbar"
+          ]
+        ],
+        "icon-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0.5,
+          15,
+          0.7,
+          18,
+          1.0
+        ],
+        "icon-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "icon-rotation-alignment": "viewport"
+      },
+      "paint": {
+        "icon-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          0.7,
+          15,
+          0.9
+        ]
+      }
+    },
+    {
+      "id": "ski-areas-points",
+      "type": "circle",
+      "source": "openskimap",
+      "source-layer": "ski_areas_point",
+      "minzoom": 8,
+      "maxzoom": 12,
+      "paint": {
+        "circle-radius": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          8,
+          3,
+          10,
+          5,
+          12,
+          7
+        ],
+        "circle-color": [
+          "match",
+          [
+            "get",
+            "status"
+          ],
+          "operating",
+          "#4a90d9",
+          "abandoned",
+          "#888888",
+          "proposed",
+          "#d9a04a",
+          "#6ab0e8"
+        ],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.5,
+        "circle-opacity": 0.9
+      }
+    },
+    {
+      "id": "runs-ref-labels",
+      "type": "symbol",
+      "source": "openskimap",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "has",
+        "ref"
+      ],
+      "minzoom": 13,
+      "layout": {
+        "text-field": [
+          "get",
+          "ref"
+        ],
+        "text-font": [
+          "Noto-Sans-Bold"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          10,
+          16,
+          14
+        ],
+        "symbol-placement": "line",
+        "text-rotation-alignment": "map",
+        "symbol-spacing": 300,
+        "text-max-angle": 45
+      },
+      "paint": {
+        "text-color": [
+          "match",
+          [
+            "get",
+            "difficulty"
+          ],
+          "novice",
+          "#006000",
+          "easy",
+          "#004080",
+          "intermediate",
+          "#a00000",
+          "advanced",
+          "#ffffff",
+          "expert",
+          "#804000",
+          "#333333"
+        ],
+        "text-halo-color": [
+          "match",
+          [
+            "get",
+            "difficulty"
+          ],
+          "advanced",
+          "#000000",
+          "#ffffff"
+        ],
+        "text-halo-width": 2,
+        "text-halo-blur": 0.5
+      }
+    },
+    {
+      "id": "runs-name-labels",
+      "type": "symbol",
+      "source": "openskimap",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "all",
+        [
+          "has",
+          "name"
+        ],
+        [
+          "!",
+          [
+            "has",
+            "ref"
+          ]
+        ]
+      ],
       "minzoom": 14,
       "layout": {
-        "text-field": ["get", "name"],
-        "text-font": ["Arial Regular"],
+        "text-field": [
+          "get",
+          "name"
+        ],
+        "text-font": [
+          "Noto-Sans-Italic"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          9,
+          16,
+          12
+        ],
+        "symbol-placement": "line",
+        "text-rotation-alignment": "map",
+        "symbol-spacing": 400,
+        "text-max-angle": 35
+      },
+      "paint": {
+        "text-color": "#333333",
+        "text-halo-color": "rgba(255, 255, 255, 0.9)",
+        "text-halo-width": 2
+      }
+    },
+    {
+      "id": "lifts-name-labels",
+      "type": "symbol",
+      "source": "openskimap",
+      "source-layer": "lifts_linestring",
+      "filter": [
+        "has",
+        "name"
+      ],
+      "minzoom": 13,
+      "layout": {
+        "text-field": [
+          "format",
+          [
+            "get",
+            "name"
+          ],
+          {},
+          "\n",
+          {},
+          [
+            "case",
+            [
+              "has",
+              "ref"
+            ],
+            [
+              "concat",
+              "(",
+              [
+                "get",
+                "ref"
+              ],
+              ")"
+            ],
+            ""
+          ],
+          {
+            "font-scale": 0.8
+          }
+        ],
+        "text-font": [
+          "Noto-Sans-Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          9,
+          16,
+          11
+        ],
+        "symbol-placement": "line",
+        "text-rotation-alignment": "map",
+        "symbol-spacing": 350,
+        "text-max-angle": 40
+      },
+      "paint": {
+        "text-color": [
+          "match",
+          [
+            "get",
+            "lift_type"
+          ],
+          "gondola",
+          "#d94a4a",
+          "cable_car",
+          "#d94a4a",
+          "chair_lift",
+          "#4a7ad9",
+          "#555555"
+        ],
+        "text-halo-color": "rgba(255, 255, 255, 0.95)",
+        "text-halo-width": 2,
+        "text-halo-blur": 0.5
+      }
+    },
+    {
+      "id": "ski-areas-name-labels",
+      "type": "symbol",
+      "source": "openskimap",
+      "source-layer": "ski_areas_point",
+      "filter": [
+        "has",
+        "name"
+      ],
+      "minzoom": 10,
+      "layout": {
+        "text-field": [
+          "format",
+          [
+            "get",
+            "name"
+          ],
+          {
+            "font-scale": 1.2
+          },
+          "\n",
+          {},
+          [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "min_elevation"
+              ],
+              [
+                "has",
+                "max_elevation"
+              ]
+            ],
+            [
+              "concat",
+              [
+                "round",
+                [
+                  "get",
+                  "min_elevation"
+                ]
+              ],
+              " - ",
+              [
+                "round",
+                [
+                  "get",
+                  "max_elevation"
+                ]
+              ],
+              " m"
+            ],
+            ""
+          ],
+          {
+            "font-scale": 0.8
+          }
+        ],
+        "text-font": [
+          "Noto-Sans-Bold"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          10,
+          11,
+          14,
+          16
+        ],
+        "text-anchor": "top",
+        "text-offset": [
+          0,
+          0.8
+        ],
+        "text-max-width": 10
+      },
+      "paint": {
+        "text-color": "#2a4a7a",
+        "text-halo-color": "rgba(255, 255, 255, 0.9)",
+        "text-halo-width": 2.5,
+        "text-halo-blur": 0.5
+      }
+    },
+    {
+      "id": "lifts-capacity-info",
+      "type": "symbol",
+      "source": "openskimap",
+      "source-layer": "lifts_linestring",
+      "filter": [
+        "all",
+        [
+          "has",
+          "capacity"
+        ],
+        [
+          ">",
+          [
+            "get",
+            "capacity"
+          ],
+          0
+        ]
+      ],
+      "minzoom": 15,
+      "layout": {
+        "text-field": [
+          "concat",
+          [
+            "round",
+            [
+              "get",
+              "capacity"
+            ]
+          ],
+          " p/h"
+        ],
+        "text-font": [
+          "Noto-Sans-Regular"
+        ],
+        "text-size": 8,
+        "symbol-placement": "line",
+        "symbol-spacing": 500
+      },
+      "paint": {
+        "text-color": "#666666",
+        "text-halo-color": "rgba(255, 255, 255, 0.9)",
+        "text-halo-width": 1.5
+      }
+    },
+    {
+      "id": "runs-details-info",
+      "type": "symbol",
+      "source": "openskimap",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "any",
+        [
+          "==",
+          [
+            "get",
+            "lit"
+          ],
+          1
+        ],
+        [
+          "==",
+          [
+            "get",
+            "gladed"
+          ],
+          1
+        ],
+        [
+          "==",
+          [
+            "get",
+            "patrolled"
+          ],
+          1
+        ]
+      ],
+      "minzoom": 15,
+      "layout": {
+        "text-field": [
+          "concat",
+          [
+            "case",
+            [
+              "==",
+              [
+                "get",
+                "lit"
+              ],
+              1
+            ],
+            "\ud83d\udca1 ",
+            ""
+          ],
+          [
+            "case",
+            [
+              "==",
+              [
+                "get",
+                "gladed"
+              ],
+              1
+            ],
+            "\ud83c\udf32 ",
+            ""
+          ],
+          [
+            "case",
+            [
+              "==",
+              [
+                "get",
+                "patrolled"
+              ],
+              1
+            ],
+            "\u26f7 ",
+            ""
+          ]
+        ],
+        "text-font": [
+          "Noto-Sans-Regular"
+        ],
         "text-size": 10,
         "symbol-placement": "line",
-        "text-offset": [0, 1]
+        "symbol-spacing": 400
       },
-      "paint": { "text-color": "#333", "text-halo-color": "#fff", "text-halo-width": 1.5 }
+      "paint": {
+        "text-opacity": 0.9
+      }
     }
-  ]
+  ],
+  "sprite": "https://tiles.oe5ith.at/assets/sprites/openskimap-sprite"
 }
