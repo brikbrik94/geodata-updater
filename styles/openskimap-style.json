@@ -231,41 +231,10 @@
           3
         ],
         "line-dasharray": [
-          "match",
+          "literal",
           [
-            "get",
-            "lift_type"
-          ],
-          "funicular",
-          [
-            "literal",
-            [
-              1,
-              0
-            ]
-          ],
-          "gondola",
-          [
-            "literal",
-            [
-              1,
-              0
-            ]
-          ],
-          "cable_car",
-          [
-            "literal",
-            [
-              1,
-              0
-            ]
-          ],
-          [
-            "literal",
-            [
-              4,
-              2
-            ]
+            4,
+            2
           ]
         ]
       }
