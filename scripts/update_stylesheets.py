@@ -162,8 +162,14 @@ def main():
 
         # Sprite URL
         if SPRITE_URL_TEMPLATE:
-            # Bei OSM heißt das Sprite oft "temaki" oder "maki", bei Basemap wie das Tileset
-            sprite_tileset = "temaki" if tileset == "osm" else tileset
+            # Bei OSM heißt das Sprite oft "temaki" oder "maki"
+            # Sonderfall: OpenSkimap Overlay nutzt OpenSkimap-Sprites
+            if tileset == "osm":
+                sprite_tileset = "temaki"
+            elif tileset == "overlays" and style_id == "openskimap":
+                sprite_tileset = "openskimap"
+            else:
+                sprite_tileset = tileset
             
             new_sprite = (
                 SPRITE_URL_TEMPLATE.replace("{tileset}", sprite_tileset)
