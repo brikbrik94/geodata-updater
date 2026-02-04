@@ -1009,83 +1009,83 @@
           "ski-gondola",
           "cable_car",
           "ski-cable-car",
-          "funicular",
-          "ski-funicular",
           "chair_lift",
           [
-            "match",
+            "case",
             [
-              "case",
+              "==",
               [
-                "==",
-                [
-                  "get",
-                  "occupancy"
-                ],
-                null
+                "get",
+                "occupancy"
               ],
-              2,
-              [
-                "<=",
-                [
-                  "to-number",
-                  [
-                    "get",
-                    "occupancy"
-                  ]
-                ],
-                0
-              ],
-              2,
-              [
-                ">",
-                [
-                  "to-number",
-                  [
-                    "get",
-                    "occupancy"
-                  ]
-                ],
-                8
-              ],
-              8,
-              [
-                "round",
-                [
-                  "to-number",
-                  [
-                    "get",
-                    "occupancy"
-                  ]
-                ]
-              ]
+              1
             ],
-            1,
             "ski-chairlift-1",
-            2,
+            [
+              "==",
+              [
+                "get",
+                "occupancy"
+              ],
+              2
+            ],
             "ski-chairlift-2",
-            3,
+            [
+              "==",
+              [
+                "get",
+                "occupancy"
+              ],
+              3
+            ],
             "ski-chairlift-3",
-            4,
+            [
+              "==",
+              [
+                "get",
+                "occupancy"
+              ],
+              4
+            ],
             "ski-chairlift-4",
-            6,
+            [
+              "==",
+              [
+                "get",
+                "occupancy"
+              ],
+              6
+            ],
             "ski-chairlift-6",
-            8,
+            [
+              "==",
+              [
+                "get",
+                "occupancy"
+              ],
+              8
+            ],
             "ski-chairlift-8",
             "ski-chairlift-2"
           ],
+          "funicular",
+          "ski-funicular",
+          "magic_carpet",
+          "ski-magic-carpet",
+          "rope_tow",
+          "ski-rope-tow",
           "t-bar",
           "ski-drag-lift-tbar",
+          "t_bar",
+          "ski-drag-lift-tbar",
           "j-bar",
+          "ski-drag-lift-tbar",
+          "j_bar",
           "ski-drag-lift-tbar",
           "platter",
           "ski-drag-lift-platter",
           "drag_lift",
           "ski-drag-lift-tbar",
-          "magic_carpet",
-          "ski-magic-carpet",
-          "rope_tow",
-          "ski-rope-tow",
           "ski-gondola"
         ],
         "icon-size": 0.7,
@@ -1121,5 +1121,5 @@
       }
     }
   ],
-  "sprite": "{SPRITE_BASE_URL}/sprite"
+  "sprite": "https://tiles.oe5ith.at/assets/sprites/openskimap/sprite"
 }
