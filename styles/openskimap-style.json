@@ -21,6 +21,120 @@
       }
     },
     {
+      "id": "ski-runs-alpine-polygons",
+      "type": "fill",
+      "source": "ski_source",
+      "source-layer": "runs_multipolygon",
+      "filter": [
+        "all",
+        [
+          "has",
+          "difficulty"
+        ]
+      ],
+      "minzoom": 12,
+      "paint": {
+        "fill-color": [
+          "case",
+          [
+            "==",
+            [
+              "get",
+              "difficulty_convention"
+            ],
+            "europe"
+          ],
+          [
+            "match",
+            [
+              "get",
+              "difficulty"
+            ],
+            "novice",
+            "#3498db",
+            "easy",
+            "#3498db",
+            "intermediate",
+            "#e74c3c",
+            "advanced",
+            "#2c3e50",
+            "expert",
+            "#2c3e50",
+            "extreme",
+            "#2c3e50",
+            "freeride",
+            "#f39c12",
+            "#95a5a6"
+          ],
+          [
+            "match",
+            [
+              "get",
+              "difficulty"
+            ],
+            "novice",
+            "#2ecc71",
+            "easy",
+            "#2ecc71",
+            "intermediate",
+            "#3498db",
+            "advanced",
+            "#e74c3c",
+            "expert",
+            "#2c3e50",
+            "extreme",
+            "#2c3e50",
+            "freeride",
+            "#f39c12",
+            "#95a5a6"
+          ]
+        ],
+        "fill-opacity": [
+          "case",
+          [
+            "in",
+            [
+              "get",
+              "status"
+            ],
+            [
+              "literal",
+              [
+                "abandoned",
+                "disused",
+                "never_opened"
+              ]
+            ]
+          ],
+          0.08,
+          [
+            "in",
+            [
+              "get",
+              "status"
+            ],
+            [
+              "literal",
+              [
+                "construction",
+                "planned",
+                "proposed"
+              ]
+            ]
+          ],
+          0.12,
+          0.18
+        ],
+        "fill-outline-color": [
+          "rgba",
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
       "id": "ski-runs-alpine-casing",
       "type": "line",
       "source": "ski_source",
