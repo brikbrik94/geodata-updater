@@ -81,124 +81,22 @@
           0.9
         ],
         "line-width": [
-          "+",
+          "interpolate",
           [
-            "case",
-            [
-              "in",
-              [
-                "get",
-                "difficulty"
-              ],
-              [
-                "literal",
-                [
-                  "expert",
-                  "extreme"
-                ]
-              ]
-            ],
-            [
-              "*",
-              [
-                "interpolate",
-                [
-                  "linear"
-                ],
-                [
-                  "zoom"
-                ],
-                6,
-                0.8,
-                9,
-                1.4,
-                12,
-                2.2,
-                14,
-                3.0
-              ],
-              1.25
-            ],
-            [
-              "==",
-              [
-                "get",
-                "difficulty"
-              ],
-              "advanced"
-            ],
-            [
-              "*",
-              [
-                "interpolate",
-                [
-                  "linear"
-                ],
-                [
-                  "zoom"
-                ],
-                6,
-                0.8,
-                9,
-                1.4,
-                12,
-                2.2,
-                14,
-                3.0
-              ],
-              1.15
-            ],
-            [
-              "==",
-              [
-                "get",
-                "difficulty"
-              ],
-              "intermediate"
-            ],
-            [
-              "*",
-              [
-                "interpolate",
-                [
-                  "linear"
-                ],
-                [
-                  "zoom"
-                ],
-                6,
-                0.8,
-                9,
-                1.4,
-                12,
-                2.2,
-                14,
-                3.0
-              ],
-              1.05
-            ],
-            [
-              "interpolate",
-              [
-                "linear"
-              ],
-              [
-                "zoom"
-              ],
-              6,
-              0.8,
-              9,
-              1.4,
-              12,
-              2.2,
-              14,
-              3.0
-            ]
+            "linear"
           ],
-          1.2
-        ],
-        "line-linecap": "round",
-        "line-linejoin": "round"
+          [
+            "zoom"
+          ],
+          6,
+          1.8,
+          9,
+          2.8,
+          12,
+          4.0,
+          14,
+          5.0
+        ]
       }
     },
     {
@@ -221,117 +119,124 @@
       },
       "paint": {
         "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0.8,
+          9,
+          1.4,
+          12,
+          2.2,
+          14,
+          3.0
+        ],
+        "line-color": [
+          "match",
+          [
+            "get",
+            "difficulty"
+          ],
+          "novice",
+          "#2ecc71",
+          "easy",
+          "#2ecc71",
+          "intermediate",
+          "#3498db",
+          "advanced",
+          "#e74c3c",
+          "expert",
+          "#2c3e50",
+          "extreme",
+          "#8e44ad",
+          "freeride",
+          "#f39c12",
+          "#95a5a6"
+        ],
+        "line-opacity": [
           "case",
           [
             "in",
             [
               "get",
-              "difficulty"
+              "status"
             ],
             [
               "literal",
               [
-                "expert",
-                "extreme"
+                "abandoned",
+                "disused",
+                "never_opened"
               ]
             ]
           ],
+          0.35,
           [
-            "*",
-            [
-              "interpolate",
-              [
-                "linear"
-              ],
-              [
-                "zoom"
-              ],
-              6,
-              0.8,
-              9,
-              1.4,
-              12,
-              2.2,
-              14,
-              3.0
-            ],
-            1.25
-          ],
-          [
-            "==",
+            "in",
             [
               "get",
-              "difficulty"
+              "status"
             ],
-            "advanced"
-          ],
-          [
-            "*",
             [
-              "interpolate",
+              "literal",
               [
-                "linear"
-              ],
-              [
-                "zoom"
-              ],
-              6,
-              0.8,
-              9,
-              1.4,
-              12,
-              2.2,
-              14,
-              3.0
-            ],
-            1.15
+                "construction",
+                "planned",
+                "proposed"
+              ]
+            ]
           ],
+          0.55,
+          0.85
+        ]
+      }
+    },
+    {
+      "id": "ski-runs-alpine-connection",
+      "type": "line",
+      "source": "ski_source",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "all",
+        [
+          "has",
+          "uses"
+        ],
+        [
+          "in",
+          "connection",
           [
-            "==",
-            [
-              "get",
-              "difficulty"
-            ],
-            "intermediate"
-          ],
-          [
-            "*",
-            [
-              "interpolate",
-              [
-                "linear"
-              ],
-              [
-                "zoom"
-              ],
-              6,
-              0.8,
-              9,
-              1.4,
-              12,
-              2.2,
-              14,
-              3.0
-            ],
-            1.05
-          ],
-          [
-            "interpolate",
-            [
-              "linear"
-            ],
-            [
-              "zoom"
-            ],
-            6,
-            0.8,
-            9,
-            1.4,
-            12,
-            2.2,
-            14,
-            3.0
+            "get",
+            "uses"
           ]
+        ]
+      ],
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round",
+        "visibility": "visible"
+      },
+      "paint": {
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0.8,
+          9,
+          1.4,
+          12,
+          2.2,
+          14,
+          3.0
         ],
         "line-color": [
           "match",
@@ -392,103 +297,232 @@
           0.85
         ],
         "line-dasharray": [
+          "literal",
+          [
+            2,
+            2
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ski-runs-alpine-sled",
+      "type": "line",
+      "source": "ski_source",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "all",
+        [
+          "has",
+          "uses"
+        ],
+        [
+          "in",
+          "sled",
+          [
+            "get",
+            "uses"
+          ]
+        ]
+      ],
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round",
+        "visibility": "visible"
+      },
+      "paint": {
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0.8,
+          9,
+          1.4,
+          12,
+          2.2,
+          14,
+          3.0
+        ],
+        "line-color": [
+          "match",
+          [
+            "get",
+            "difficulty"
+          ],
+          "novice",
+          "#2ecc71",
+          "easy",
+          "#2ecc71",
+          "intermediate",
+          "#3498db",
+          "advanced",
+          "#e74c3c",
+          "expert",
+          "#2c3e50",
+          "extreme",
+          "#8e44ad",
+          "freeride",
+          "#f39c12",
+          "#95a5a6"
+        ],
+        "line-opacity": [
           "case",
           [
-            "has",
-            "uses"
-          ],
-          [
-            "case",
+            "in",
             [
-              "in",
-              "connection",
-              [
-                "split",
-                [
-                  "get",
-                  "uses"
-                ],
-                ","
-              ]
+              "get",
+              "status"
             ],
             [
               "literal",
               [
-                "literal",
-                [
-                  2,
-                  2
-                ]
-              ]
-            ],
-            [
-              "in",
-              "sled",
-              [
-                "split",
-                [
-                  "get",
-                  "uses"
-                ],
-                ","
-              ]
-            ],
-            [
-              "literal",
-              [
-                "literal",
-                [
-                  1,
-                  2
-                ]
-              ]
-            ],
-            [
-              "in",
-              "nordic",
-              [
-                "split",
-                [
-                  "get",
-                  "uses"
-                ],
-                ","
-              ]
-            ],
-            [
-              "literal",
-              [
-                "literal",
-                [
-                  1,
-                  1.5
-                ]
-              ]
-            ],
-            [
-              "literal",
-              [
-                "literal",
-                [
-                  1,
-                  0
-                ]
+                "abandoned",
+                "disused",
+                "never_opened"
               ]
             ]
           ],
+          0.35,
           [
-            "literal",
+            "in",
+            [
+              "get",
+              "status"
+            ],
             [
               "literal",
               [
-                1,
-                0
+                "construction",
+                "planned",
+                "proposed"
               ]
             ]
-          ]
+          ],
+          0.55,
+          0.85
         ],
-        "line-linecap": "round",
-        "line-linejoin": "round"
+        "line-dasharray": [
+          "literal",
+          [
+            1,
+            2
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ski-runs-alpine-nordic",
+      "type": "line",
+      "source": "ski_source",
+      "source-layer": "runs_linestring",
+      "filter": [
+        "all",
+        [
+          "has",
+          "uses"
+        ],
+        [
+          "in",
+          "nordic",
+          [
+            "get",
+            "uses"
+          ]
+        ]
+      ],
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round",
+        "visibility": "visible"
+      },
+      "paint": {
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0.8,
+          9,
+          1.4,
+          12,
+          2.2,
+          14,
+          3.0
+        ],
+        "line-color": [
+          "match",
+          [
+            "get",
+            "difficulty"
+          ],
+          "novice",
+          "#2ecc71",
+          "easy",
+          "#2ecc71",
+          "intermediate",
+          "#3498db",
+          "advanced",
+          "#e74c3c",
+          "expert",
+          "#2c3e50",
+          "extreme",
+          "#8e44ad",
+          "freeride",
+          "#f39c12",
+          "#95a5a6"
+        ],
+        "line-opacity": [
+          "case",
+          [
+            "in",
+            [
+              "get",
+              "status"
+            ],
+            [
+              "literal",
+              [
+                "abandoned",
+                "disused",
+                "never_opened"
+              ]
+            ]
+          ],
+          0.35,
+          [
+            "in",
+            [
+              "get",
+              "status"
+            ],
+            [
+              "literal",
+              [
+                "construction",
+                "planned",
+                "proposed"
+              ]
+            ]
+          ],
+          0.55,
+          0.85
+        ],
+        "line-dasharray": [
+          "literal",
+          [
+            1,
+            1.5
+          ]
+        ]
       }
     },
     {
@@ -583,29 +617,11 @@
           "cable_car",
           2,
           1
-        ],
-        "line-dasharray": [
-          "match",
-          [
-            "get",
-            "lift_type"
-          ],
-          "funicular",
-          [
-            "literal",
-            [
-              1,
-              0
-            ]
-          ],
-          [
-            "literal",
-            [
-              4,
-              1
-            ]
-          ]
         ]
+      },
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
       }
     },
     {
