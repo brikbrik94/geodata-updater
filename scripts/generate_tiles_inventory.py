@@ -12,6 +12,19 @@ OUTPUT_FILE = Path(os.environ.get("TILES_INVENTORY_PATH", "/srv/info/tiles_inven
 # Base URL (Optional)
 TILES_BASE_URL = os.environ.get("TILES_BASE_URL", "").rstrip("/")
 
+
+def classify_tileset_type(tileset_name):
+    """
+    Klassifiziert den fachlichen Typ eines Tilesets für APIs/UI.
+    """
+    if tileset_name in {"osm", "basemap-at"}:
+        return "basemap"
+    if tileset_name == "overlays":
+        return "overlay"
+    if tileset_name == "elevation":
+        return "elevation"
+    return "unknown"
+
 def main():
     if not TILES_DIR.exists():
         print(f"❌ Fehler: Tiles Verzeichnis {TILES_DIR} existiert nicht.")
@@ -38,14 +51,15 @@ def main():
             filename = pmtiles_path.name       
             map_id = pmtiles_path.stem         
 
-            # 1. STYLE PFADE
+            # 1. STYLE PFADE (optional, z.B. bei elevation/terrain gibt es ggf. keinen Style)
             style_file = styles_dir / map_id / "style.json"
-            
-            style_abs_path = style_file.as_posix()
-            style_rel_path = f"{tileset_name}/styles/{map_id}/style.json"
-            
+            style_exists = style_file.exists()
+
+            style_abs_path = style_file.as_posix() if style_exists else None
+            style_rel_path = f"{tileset_name}/styles/{map_id}/style.json" if style_exists else None
+
             style_url = None
-            if TILES_BASE_URL:
+            if style_exists and TILES_BASE_URL:
                 style_url = f"{TILES_BASE_URL}/{style_rel_path}"
 
             # 2. PMTILES PFADE
@@ -59,24 +73,30 @@ def main():
             info_json_file = tilejson_dir / f"{map_id}.json"
             info_json_path = info_json_file.as_posix() if info_json_file.exists() else None
             
+            dataset_type = classify_tileset_type(tileset_name)
+
             dataset = {
                 "id": map_id,
                 "tileset": tileset_name,
+                "type": dataset_type,
+                "pmtiles_type": dataset_type,
                 "path": style_abs_path,
                 "relative_path": style_rel_path,
                 "pmtiles_path": pmtiles_abs_path,
                 "pmtiles_file": filename,
                 "size_bytes": pmtiles_path.stat().st_size,
-                "tileset_info_path": info_json_path
+                "tileset_info_path": info_json_path,
+                "has_style": style_exists
             }
 
-            if style_url: dataset["url"] = style_url
+            if style_url:
+                dataset["url"] = style_url
             if pmtiles_url:
                 dataset["pmtiles_url"] = pmtiles_url
                 dataset["pmtiles_internal"] = f"pmtiles://{pmtiles_url}"
 
             datasets.append(dataset)
-            print(f"   ➕ Dataset: {tileset_name}/{map_id}")
+            print(f"   ➕ Dataset: {tileset_name}/{map_id} (Typ: {dataset_type})")
 
     output_data = {
         "generated_at": datetime.datetime.now().isoformat(),

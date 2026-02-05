@@ -67,6 +67,29 @@ def process_sprites(sprites_raw):
     
     return sorted(list(sprite_sets.values()), key=lambda x: x["id"])
 
+
+
+def normalize_datasets(datasets):
+    """
+    Sichert Typ-Informationen in endpoints_info.json, auch bei älteren Inventaren.
+    """
+    if not isinstance(datasets, list):
+        return []
+
+    normalized = []
+    for entry in datasets:
+        if not isinstance(entry, dict):
+            continue
+
+        item = dict(entry)
+        # Rückwärtskompatibel: falls nur eines der Felder existiert
+        item_type = item.get("type") or item.get("pmtiles_type") or "unknown"
+        item["type"] = item_type
+        item["pmtiles_type"] = item_type
+        normalized.append(item)
+
+    return normalized
+
 def process_fonts(fonts_data):
     """
     Erstellt eine kompakte Font-Info.
@@ -107,6 +130,7 @@ def main():
     raw_sprites_list = sprites_data_raw.get("sprites", [])
     processed_sprites = process_sprites(raw_sprites_list)
     processed_fonts = process_fonts(fonts_data)
+    normalized_datasets = normalize_datasets(tiles_data.get("datasets", []))
 
     # 3. Struktur zusammenbauen
     master_data = {
@@ -115,7 +139,7 @@ def main():
              "tiles_base_url": TILES_BASE_URL,
              "assets_base_url": ASSETS_BASE_URL,
         },
-        "datasets": tiles_data.get("datasets", []),
+        "datasets": normalized_datasets,
         "sprites": processed_sprites,
         "fonts": processed_fonts
     }
