@@ -24,8 +24,8 @@ mkdir -p "$OUTPUT_DIR"
 FILENAME="$(basename "$BASEMAP_URL")"
 DEST_PATH="$OUTPUT_DIR/$FILENAME"
 
-# Alters-Prüfung (2 Jahre in Sekunden)
-TWO_YEARS_SECONDS=$((60 * 60 * 24 * 365 * 2))
+# Alters-Prüfung (2 Monate in Sekunden, ~60 Tage)
+TWO_MONTHS_SECONDS=$((60 * 60 * 24 * 60))
 NOW_EPOCH=$(date +%s)
 SHOULD_DOWNLOAD=1
 
@@ -33,11 +33,11 @@ if [ -f "$DEST_PATH" ]; then
     FILE_MTIME=$(stat -c %Y "$DEST_PATH")
     AGE_SECONDS=$((NOW_EPOCH - FILE_MTIME))
     
-    if [ "$AGE_SECONDS" -lt "$TWO_YEARS_SECONDS" ]; then
-        log_info "Datei ist aktuell (< 2 Jahre): $FILENAME"
+    if [ "$AGE_SECONDS" -lt "$TWO_MONTHS_SECONDS" ]; then
+        log_info "Datei ist aktuell (< 2 Monate): $FILENAME"
         SHOULD_DOWNLOAD=0
     else
-        log_warn "Datei ist veraltet (> 2 Jahre). Starte Update..."
+        log_warn "Datei ist veraltet (> 2 Monate). Starte Update..."
     fi
 fi
 

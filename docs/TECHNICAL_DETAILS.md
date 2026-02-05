@@ -17,7 +17,7 @@ Das System enthält spezielle Logik für österreichische Regierungsdaten.
 
 - **Quelle:** `https://cdn.basemap.at/offline/bmapv_vtpk_3857.vtpk`
 
-- **Logik:** Die Datei wird nur heruntergeladen, wenn die lokale Datei älter als **2 Jahre** ist (um Bandbreite zu sparen).
+- **Logik:** Die Datei wird nur heruntergeladen, wenn die lokale Datei älter als **2 Monate** ist (um Bandbreite zu sparen).
 
 - **Ziel:** `/srv/build/basemap-at/src/bmapv_vtpk_3857.vtpk`
 
