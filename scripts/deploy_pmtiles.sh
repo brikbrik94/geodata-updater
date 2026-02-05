@@ -21,6 +21,33 @@ BASEMAP_SRC="$(realpath -m "${BASEMAP_BUILD_DIR:-/srv/build/basemap-at}/tmp")"
 
 log_info "Deployment Ziel: $TILES_DIR"
 
+copy_if_newer() {
+    local src="$1"
+    local dst="$2"
+    local label="$3"
+
+    if [ ! -f "$src" ]; then
+        return
+    fi
+
+    if [ -f "$dst" ]; then
+        local src_mtime dst_mtime
+        src_mtime=$(stat -c %Y "$src")
+        dst_mtime=$(stat -c %Y "$dst")
+
+        if [ "$src_mtime" -le "$dst_mtime" ]; then
+            echo "   ⏭️  $label unverändert: $(basename "$src")"
+            return
+        fi
+    fi
+
+    mkdir -p "$(dirname "$dst")"
+    cp -f "$src" "$dst"
+    chmod 644 "$dst"
+    echo "   📦 $label aktualisiert: $(basename "$src")"
+}
+
+
 # --- FUNKTION: Deploy Tileset ---
 deploy_tileset() {
     local src_dir="$1"
@@ -44,12 +71,9 @@ deploy_tileset() {
         mkdir -p "$pmtiles_dest"
 
         for file in "${pmtiles_files[@]}"; do
-            filename=$(basename "$file")
-            target="$pmtiles_dest/$filename"
+            target="$pmtiles_dest/$(basename "$file")"
 
-            cp -f "$file" "$target"
-            chmod 644 "$target"
-            echo "   📦 PMTiles: $filename"
+            copy_if_newer "$file" "$target" "PMTiles"
         done
 
         # B) Metadaten (JSON) kopieren (z.B. at.json von Planetiler)
@@ -60,10 +84,7 @@ deploy_tileset() {
         if [ ${#json_files[@]} -gt 0 ]; then
             mkdir -p "$tilejson_dest"
             for jfile in "${json_files[@]}"; do
-                jname=$(basename "$jfile")
-                cp -f "$jfile" "$tilejson_dest/$jname"
-                chmod 644 "$tilejson_dest/$jname"
-                echo "   📄 Info:    $jname"
+                copy_if_newer "$jfile" "$tilejson_dest/$(basename "$jfile")" "Info"
             done
         fi
     fi
@@ -83,24 +104,19 @@ mkdir -p "$TILES_DIR/overlays/tilejson"
 # Contours
 CONTOURS_TMP="${CONTOURS_BUILD_DIR:-/srv/build/overlays/contours}/tmp"
 if [ -f "$CONTOURS_TMP/basemap-at-contours.pmtiles" ]; then
-    cp -f "$CONTOURS_TMP/basemap-at-contours.pmtiles" "$TILES_DIR/overlays/pmtiles/"
-    chmod 644 "$TILES_DIR/overlays/pmtiles/basemap-at-contours.pmtiles"
-    echo "   📦 PMTiles: basemap-at-contours.pmtiles"
-    
+    copy_if_newer "$CONTOURS_TMP/basemap-at-contours.pmtiles" "$TILES_DIR/overlays/pmtiles/basemap-at-contours.pmtiles" "PMTiles"
+
     # Metadaten-JSON für Contours (falls generiert)
     CONTOURS_JSON="$CONTOURS_TMP/basemap-at-contours.json"
     if [ -f "$CONTOURS_JSON" ]; then
-        cp -f "$CONTOURS_JSON" "$TILES_DIR/overlays/tilejson/"
-        echo "   📄 Info:    basemap-at-contours.json"
+        copy_if_newer "$CONTOURS_JSON" "$TILES_DIR/overlays/tilejson/basemap-at-contours.json" "Info"
     fi
 fi
 
 # OpenSkimap
 SKIMAP_TMP="${SKIMAP_BUILD_DIR:-/srv/build/overlays/openskimap}/tmp"
 if [ -f "$SKIMAP_TMP/openskimap.pmtiles" ]; then
-    cp -f "$SKIMAP_TMP/openskimap.pmtiles" "$TILES_DIR/overlays/pmtiles/"
-    chmod 644 "$TILES_DIR/overlays/pmtiles/openskimap.pmtiles"
-    echo "   📦 PMTiles: openskimap.pmtiles"
+    copy_if_newer "$SKIMAP_TMP/openskimap.pmtiles" "$TILES_DIR/overlays/pmtiles/openskimap.pmtiles" "PMTiles"
 fi
 
 # 3. Abschluss: Inventar & Info-Generation
