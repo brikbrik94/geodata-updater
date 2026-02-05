@@ -74,6 +74,10 @@ sudo mkdir -p "$OVERLAYS_BUILD_DIR/contours/src" "$OVERLAYS_BUILD_DIR/contours/t
 sudo mkdir -p "$OVERLAYS_BUILD_DIR/openskimap/src" "$OVERLAYS_BUILD_DIR/openskimap/tmp"
 sudo mkdir -p "$TILES_DIR/overlays/pmtiles" "$TILES_DIR/overlays/tilejson" "$TILES_DIR/overlays/styles"
 
+# Elevation / Terrain (DEM)
+# Enthält reine Höhendaten (z. B. terrain-rgb.pmtiles) ohne eigenes Style.
+sudo mkdir -p "$TILES_DIR/elevation/pmtiles" "$TILES_DIR/elevation/tilejson"
+
 # Assets & ORS
 sudo mkdir -p "$ASSETS_DIR/fonts" "$ASSETS_DIR/sprites" /srv/info/attribution
 sudo mkdir -p "$ORS_DIR/emergency" "$ORS_DIR/graphs" "$ORS_DIR/logs" "$ORS_DIR/tmp"
