@@ -1,0 +1,20 @@
+{
+  "schema": "v2",
+  "defaults": {
+    "sprite_set": "{tileset}"
+  },
+  "tilesets": {
+    "osm": {
+      "sprite_set": "temaki"
+    },
+    "basemap-at": {
+      "sprite_set": "basemap-at"
+    },
+    "overlays": {
+      "sprite_set": "overlays",
+      "styles": {
+        "openskimap": "openskimap"
+      }
+    }
+  }
+}
