@@ -37,6 +37,13 @@ if [ -f "$SCRIPT_DIR/generate_tiles_inventory.sh" ]; then
     "$SCRIPT_DIR/generate_tiles_inventory.sh"
 fi
 
+
+# 4b. Sprite-Inventory erstellen (einmalig am Ende der Pipeline)
+if [ -f "$SCRIPT_DIR/generate_sprite_inventory.sh" ]; then
+    log_info "Generiere Sprite Inventory..."
+    "$SCRIPT_DIR/generate_sprite_inventory.sh"
+fi
+
 # 5. Master Info generieren (Aggregiert alles)
 if [ -f "$SCRIPT_DIR/generate_endpoints_info.sh" ]; then
     log_info "Generiere Endpunkt-Informationen (Master JSON)..."
