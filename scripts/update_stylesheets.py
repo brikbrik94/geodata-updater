@@ -78,6 +78,11 @@ FONT_MAP = {
     "Tahoma Regular": "Noto Sans Regular",
 }
 
+BASEMAP_AT_ATTRIBUTION = (
+    '© <a href="https://www.basemap.at" '
+    'target="_blank" rel="noopener noreferrer">basemap.at</a>'
+)
+
 # --- FUNKTIONEN ---
 
 def replace_fonts(node, changed_flag, replacements, parent_key=None):
@@ -186,6 +191,34 @@ def resolve_sprite_tileset(mapping, tileset, style_id):
         return "openskimap"
     return tileset
 
+
+def normalize_basemap_attribution(data, tileset, style_id, changed_flag, change_log):
+    """Sichert verpflichtende basemap.at Attributionen für Basemap- und Contours-Styles."""
+    sources = data.get("sources")
+    if not isinstance(sources, dict):
+        return
+
+    required_attribution = None
+    if tileset == "basemap-at":
+        required_attribution = BASEMAP_AT_ATTRIBUTION
+    elif tileset == "overlays" and style_id == "basemap-at-contours":
+        required_attribution = BASEMAP_AT_ATTRIBUTION
+
+    if not required_attribution:
+        return
+
+    for source_name, source in sources.items():
+        if not isinstance(source, dict):
+            continue
+
+        current = source.get("attribution")
+        if current != required_attribution:
+            source["attribution"] = required_attribution
+            changed_flag[0] = True
+            change_log.append(
+                f"      📝 Attribution '{source_name}': auf '{required_attribution}' gesetzt"
+            )
+
 def main():
     # Suche alle style.json Dateien
     style_files = sorted(TILES_DIR.glob("*/styles/*/style.json"))
@@ -243,6 +276,9 @@ def main():
         data = replace_fonts(data, changed, font_replacements)
         for old, new in sorted(font_replacements):
             change_log.append(f"      📝 Font: \"{old}\" -> \"{new}\"")
+
+        # Basemap-Attribution prüfen und ggf. auf MapLibre-kompatibles Format korrigieren
+        normalize_basemap_attribution(data, tileset, style_id, changed, change_log)
 
         # Sprite URL
         if SPRITE_URL_TEMPLATE:
