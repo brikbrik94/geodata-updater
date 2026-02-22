@@ -78,6 +78,11 @@ FONT_MAP = {
     "Tahoma Regular": "Noto Sans Regular",
 }
 
+MAPLIBRE_OSM_ATTRIBUTION = (
+    '© <a href="https://www.openstreetmap.org/copyright" '
+    'target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
+)
+
 # --- FUNKTIONEN ---
 
 def replace_fonts(node, changed_flag, replacements, parent_key=None):
@@ -186,6 +191,36 @@ def resolve_sprite_tileset(mapping, tileset, style_id):
         return "openskimap"
     return tileset
 
+
+def normalize_basemap_attribution(data, tileset, changed_flag, change_log):
+    """Stellt sicher, dass Basemap-Styles eine MapLibre-kompatible OSM-Attribution haben."""
+    if tileset != "basemap-at":
+        return
+
+    sources = data.get("sources")
+    if not isinstance(sources, dict):
+        return
+
+    for source_name, source in sources.items():
+        if not isinstance(source, dict):
+            continue
+
+        attribution = source.get("attribution")
+        if not isinstance(attribution, str):
+            continue
+
+        attribution_lower = attribution.lower()
+        has_osm = "openstreetmap" in attribution_lower
+        has_copyright_url = "openstreetmap.org/copyright" in attribution_lower
+        has_contributors = "contributors" in attribution_lower
+
+        if has_osm and (not has_copyright_url or not has_contributors):
+            source["attribution"] = MAPLIBRE_OSM_ATTRIBUTION
+            changed_flag[0] = True
+            change_log.append(
+                f"      📝 Attribution '{source_name}': auf MapLibre-kompatibles OSM-Format gesetzt"
+            )
+
 def main():
     # Suche alle style.json Dateien
     style_files = sorted(TILES_DIR.glob("*/styles/*/style.json"))
@@ -243,6 +278,9 @@ def main():
         data = replace_fonts(data, changed, font_replacements)
         for old, new in sorted(font_replacements):
             change_log.append(f"      📝 Font: \"{old}\" -> \"{new}\"")
+
+        # Basemap-Attribution prüfen und ggf. auf MapLibre-kompatibles Format korrigieren
+        normalize_basemap_attribution(data, tileset, changed, change_log)
 
         # Sprite URL
         if SPRITE_URL_TEMPLATE:
