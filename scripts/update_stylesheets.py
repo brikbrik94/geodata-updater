@@ -9,6 +9,7 @@ TILES_DIR = Path(os.environ.get("TILES_DIR", "/srv/tiles"))
 TILES_BASE_URL = os.environ.get("TILES_BASE_URL", "").rstrip("/")
 ASSETS_BASE_URL = os.environ.get("ASSETS_BASE_URL", "").rstrip("/")
 ENDPOINTS_INFO_PATH = Path(os.environ.get("ENDPOINTS_INFO_PATH", "/srv/info/endpoints_info.json"))
+SPRITE_MAPPING_FILE = Path(os.environ.get("SPRITE_MAPPING_FILE", str(Path(__file__).resolve().parent.parent / "conf" / "sprite_mapping.json")))
 
 # Templates
 SPRITE_URL_TEMPLATE = os.environ.get("SPRITE_URL_TEMPLATE", "").strip()
@@ -103,6 +104,88 @@ def replace_fonts(node, changed_flag, replacements, parent_key=None):
             return replacement
     return node
 
+
+
+def load_sprite_mapping():
+    mapping = {"default": None, "tilesets": {}, "styles": {}}
+
+    if not SPRITE_MAPPING_FILE.exists():
+        return mapping
+
+    try:
+        raw = json.loads(SPRITE_MAPPING_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        log_warn(f"Sprite-Mapping konnte nicht gelesen werden ({SPRITE_MAPPING_FILE}): {e}")
+        return mapping
+
+    if not isinstance(raw, dict):
+        log_warn(f"Sprite-Mapping hat ungültiges Format: {SPRITE_MAPPING_FILE}")
+        return mapping
+
+    # v1 (legacy): {default, tilesets: {tileset: sprite}, styles: {tileset/style: sprite}}
+    default = raw.get("default")
+    if isinstance(default, str) and default.strip():
+        mapping["default"] = default.strip()
+
+    tilesets = raw.get("tilesets")
+    if isinstance(tilesets, dict):
+        for key, value in tilesets.items():
+            if not isinstance(key, str) or not key.strip():
+                continue
+
+            # v1 direct string
+            if isinstance(value, str) and value.strip():
+                mapping["tilesets"][key.strip()] = value.strip()
+                continue
+
+            # v2 object: {sprite_set: "...", styles: {style_id: "..."}}
+            if isinstance(value, dict):
+                sprite_set = value.get("sprite_set")
+                if isinstance(sprite_set, str) and sprite_set.strip():
+                    mapping["tilesets"][key.strip()] = sprite_set.strip()
+
+                style_map = value.get("styles")
+                if isinstance(style_map, dict):
+                    for style_id, sprite in style_map.items():
+                        if isinstance(style_id, str) and isinstance(sprite, str) and style_id.strip() and sprite.strip():
+                            mapping["styles"][f"{key.strip()}/{style_id.strip()}"] = sprite.strip()
+
+    # v1 top-level style overrides
+    styles = raw.get("styles")
+    if isinstance(styles, dict):
+        for key, value in styles.items():
+            if isinstance(key, str) and isinstance(value, str) and key.strip() and value.strip():
+                mapping["styles"][key.strip()] = value.strip()
+
+    # v2 defaults block
+    defaults = raw.get("defaults")
+    if isinstance(defaults, dict):
+        sprite_set = defaults.get("sprite_set")
+        if isinstance(sprite_set, str) and sprite_set.strip():
+            mapping["default"] = sprite_set.strip()
+
+    return mapping
+
+
+def resolve_sprite_tileset(mapping, tileset, style_id):
+    style_key = f"{tileset}/{style_id}"
+
+    if style_key in mapping["styles"]:
+        return mapping["styles"][style_key]
+
+    if tileset in mapping["tilesets"]:
+        return mapping["tilesets"][tileset]
+
+    if mapping["default"]:
+        return mapping["default"].replace("{tileset}", tileset).replace("{style_id}", style_id)
+
+    # Kompatibilitäts-Fallback (altes Verhalten)
+    if tileset == "osm":
+        return "temaki"
+    if tileset == "overlays" and style_id == "openskimap":
+        return "openskimap"
+    return tileset
+
 def main():
     # Suche alle style.json Dateien
     style_files = sorted(TILES_DIR.glob("*/styles/*/style.json"))
@@ -112,6 +195,7 @@ def main():
         sys.exit(0) 
 
     updated_count = 0
+    sprite_mapping = load_sprite_mapping()
 
     for style_path in style_files:
         # Pfad-Struktur: .../tiles/{tileset}/styles/{style_id}/style.json
@@ -162,15 +246,7 @@ def main():
 
         # Sprite URL
         if SPRITE_URL_TEMPLATE:
-            # Bei OSM heißt das Sprite oft "temaki" oder "maki"
-            # Sonderfall: OpenSkimap Overlay nutzt OpenSkimap-Sprites
-            if tileset == "osm":
-                sprite_tileset = "temaki"
-            elif tileset == "overlays" and style_id == "openskimap":
-                sprite_tileset = "openskimap"
-            else:
-                sprite_tileset = tileset
-            
+            sprite_tileset = resolve_sprite_tileset(sprite_mapping, tileset, style_id)
             new_sprite = (
                 SPRITE_URL_TEMPLATE.replace("{tileset}", sprite_tileset)
                 .replace("{style_id}", style_id)
