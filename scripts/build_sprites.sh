@@ -123,32 +123,9 @@ fi
 rm -rf "$TEMP_DIR" "$FLAT_DIR"
 
 # --- 3. SPRITES AUS TILES-BUILD ÜBERNEHMEN ---
-log_info "Prüfe auf Tileset-Sprites in $BUILD_DIR..."
-if [[ -d "$BUILD_DIR" ]]; then
-    FOUND_TILES_SPRITES=0
-    # Wir suchen nach build/*/tmp/sprites
-    # Nutze find mit mindepth, um direkt die tmp Ordner zu finden
-    while IFS= read -r -d '' tmp_dir; do
-        tileset_id="$(basename "$(dirname "$tmp_dir")")" # z.B. basemap-at
-        sprites_dir="$tmp_dir/sprites"
-        
-        if [[ -d "$sprites_dir" ]]; then
-            tileset_output_dir="$OUTPUT_DIR/$tileset_id"
-            mkdir -p "$tileset_output_dir"
-            
-            # Kopiere die 4 Standard-Dateien
-            for sprite_file in sprite.json sprite.png sprite@2x.json sprite@2x.png; do
-                if [[ -f "$sprites_dir/$sprite_file" ]]; then
-                    cp -f "$sprites_dir/$sprite_file" "$tileset_output_dir/$sprite_file"
-                    FOUND_TILES_SPRITES=1
-                fi
-            done
-            if [ $FOUND_TILES_SPRITES -eq 1 ]; then
-                 echo "      > Übernommen: $tileset_id"
-            fi
-        fi
-    done < <(find "$BUILD_DIR" -mindepth 2 -maxdepth 2 -type d -name tmp -print0)
-fi
+# Für den Live-Betrieb deaktiviert: Sprites werden ausschließlich aus /srv/assets/sprites bedient.
+# Der Build-Ordner darf nicht als Quelle für produktive Sprite-Dateien dienen.
+log_info "Überspringe Import aus BUILD_DIR (Live-Betrieb nutzt nur ASSETS_DIR)."
 
 # --- 4. RECHTE ---
 log_info "Setze Berechtigungen..."
