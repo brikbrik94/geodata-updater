@@ -123,32 +123,9 @@ fi
 rm -rf "$TEMP_DIR" "$FLAT_DIR"
 
 # --- 3. SPRITES AUS TILES-BUILD ÜBERNEHMEN ---
-log_info "Prüfe auf Tileset-Sprites in $BUILD_DIR..."
-if [[ -d "$BUILD_DIR" ]]; then
-    FOUND_TILES_SPRITES=0
-    # Wir suchen nach build/*/tmp/sprites
-    # Nutze find mit mindepth, um direkt die tmp Ordner zu finden
-    while IFS= read -r -d '' tmp_dir; do
-        tileset_id="$(basename "$(dirname "$tmp_dir")")" # z.B. basemap-at
-        sprites_dir="$tmp_dir/sprites"
-        
-        if [[ -d "$sprites_dir" ]]; then
-            tileset_output_dir="$OUTPUT_DIR/$tileset_id"
-            mkdir -p "$tileset_output_dir"
-            
-            # Kopiere die 4 Standard-Dateien
-            for sprite_file in sprite.json sprite.png sprite@2x.json sprite@2x.png; do
-                if [[ -f "$sprites_dir/$sprite_file" ]]; then
-                    cp -f "$sprites_dir/$sprite_file" "$tileset_output_dir/$sprite_file"
-                    FOUND_TILES_SPRITES=1
-                fi
-            done
-            if [ $FOUND_TILES_SPRITES -eq 1 ]; then
-                 echo "      > Übernommen: $tileset_id"
-            fi
-        fi
-    done < <(find "$BUILD_DIR" -mindepth 2 -maxdepth 2 -type d -name tmp -print0)
-fi
+# Für den Live-Betrieb deaktiviert: Sprites werden ausschließlich aus /srv/assets/sprites bedient.
+# Der Build-Ordner darf nicht als Quelle für produktive Sprite-Dateien dienen.
+log_info "Überspringe Import aus BUILD_DIR (Live-Betrieb nutzt nur ASSETS_DIR)."
 
 # --- 4. RECHTE ---
 log_info "Setze Berechtigungen..."
@@ -159,49 +136,4 @@ if [[ "$OSTYPE" != "msys" ]]; then
      chmod -R 755 "$OUTPUT_DIR"
 fi
 
-# --- 5. INVENTORY ERSTELLEN ---
-log_info "Erstelle Sprite-Inventar ($SPRITE_INVENTORY_FILE)..."
-TMP_SPRITE_INVENTORY="$(mktemp)"
-
-# Wir bauen ein sauberes JSON Array
-# Format: { "sprites": { "maki": {...}, "temaki": {...} } } 
-# ODER Flache Liste wie im alten Skript?
-# Das alte Skript machte eine flache Liste von Dateinamen: "sprites": [ "maki/sprite.json", ... ]
-# Wir bleiben beim Format des alten Skripts für Kompatibilität, aber nutzen Python für sauberes JSON
-
-# Wir nutzen ein kleines Python Inline-Script, um das JSON sauber zu generieren
-export OUTPUT_DIR
-export TMP_SPRITE_INVENTORY
-python3 -c '
-import os
-import json
-import glob
-
-output_dir = os.environ["OUTPUT_DIR"]
-inventory_path = os.environ["TMP_SPRITE_INVENTORY"]
-sprites_list = []
-
-# Suche rekursiv alle .json und .png
-for root, dirs, files in os.walk(output_dir):
-    for file in files:
-        if file.endswith(".json") or file.endswith(".png"):
-            # Relativer Pfad zum Output Dir
-            full_path = os.path.join(root, file)
-            rel_path = os.path.relpath(full_path, output_dir)
-            sprites_list.append(rel_path)
-
-# Sortieren
-sprites_list.sort()
-
-# JSON Struktur
-data = {"sprites": sprites_list}
-
-with open(inventory_path, "w") as f:
-    json.dump(data, f, indent=2)
-'
-
-# Verschieben
-mv "$TMP_SPRITE_INVENTORY" "$INFO_DIR/$SPRITE_INVENTORY_FILE"
-chmod 644 "$INFO_DIR/$SPRITE_INVENTORY_FILE"
-
-log_success "Sprites gebaut und Inventar erstellt."
+log_success "Sprites gebaut."
