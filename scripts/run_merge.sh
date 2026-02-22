@@ -55,6 +55,34 @@ for list_file in "${LIST_FILES[@]}"; do
         continue
     fi
 
+    # Integritätsprüfung vor dem eigentlichen Merge.
+    INVALID_COUNT=0
+    for pbf in "${PBF_INPUTS[@]}"; do
+        if [ ! -f "$pbf" ]; then
+            log_error "Eingabedatei fehlt: $pbf"
+            INVALID_COUNT=$((INVALID_COUNT+1))
+            continue
+        fi
+
+        if ! osmium fileinfo "$pbf" >/dev/null 2>&1; then
+            log_error "Ungültige OSM PBF erkannt (Header): $pbf"
+            INVALID_COUNT=$((INVALID_COUNT+1))
+            continue
+        fi
+
+        # Liest den kompletten Stream, um späte Dekompressionsfehler zu erkennen.
+        if ! osmium cat -o /dev/null "$pbf" >/dev/null 2>&1; then
+            log_error "Defekte OSM PBF erkannt (Stream/Dekompression): $pbf"
+            INVALID_COUNT=$((INVALID_COUNT+1))
+        fi
+    done
+
+    if [ "$INVALID_COUNT" -gt 0 ]; then
+        log_error "Abbruch für Karte '$MAP_NAME': $INVALID_COUNT fehlerhafte Eingabedatei(en)."
+        log_info "Tipp: scripts/download_osm.sh erneut ausführen, um defekte Dateien neu zu laden."
+        exit 1
+    fi
+
     # Entscheidung: Mergen oder Kopieren?
     if [ "$FILE_COUNT" -eq 1 ]; then
         SINGLE_FILE="${PBF_INPUTS[0]}"
