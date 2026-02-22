@@ -82,6 +82,11 @@ MAPLIBRE_OSM_ATTRIBUTION = (
     '© <a href="https://www.openstreetmap.org/copyright" '
     'target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
 )
+BASEMAP_AT_ATTRIBUTION = (
+    '© <a href="https://www.basemap.at" '
+    'target="_blank" rel="noopener noreferrer">basemap.at</a>'
+)
+BASEMAP_WITH_OSM_ATTRIBUTION = f"{BASEMAP_AT_ATTRIBUTION} | {MAPLIBRE_OSM_ATTRIBUTION}"
 
 # --- FUNKTIONEN ---
 
@@ -192,33 +197,31 @@ def resolve_sprite_tileset(mapping, tileset, style_id):
     return tileset
 
 
-def normalize_basemap_attribution(data, tileset, changed_flag, change_log):
-    """Stellt sicher, dass Basemap-Styles eine MapLibre-kompatible OSM-Attribution haben."""
-    if tileset != "basemap-at":
-        return
-
+def normalize_basemap_attribution(data, tileset, style_id, changed_flag, change_log):
+    """Sichert verpflichtende Attributionen für basemap.at und ergänzt OSM im MapLibre-Format."""
     sources = data.get("sources")
     if not isinstance(sources, dict):
+        return
+
+    required_attribution = None
+    if tileset == "basemap-at":
+        required_attribution = BASEMAP_WITH_OSM_ATTRIBUTION
+    elif tileset == "overlays" and style_id == "basemap-at-contours":
+        required_attribution = BASEMAP_AT_ATTRIBUTION
+
+    if not required_attribution:
         return
 
     for source_name, source in sources.items():
         if not isinstance(source, dict):
             continue
 
-        attribution = source.get("attribution")
-        if not isinstance(attribution, str):
-            continue
-
-        attribution_lower = attribution.lower()
-        has_osm = "openstreetmap" in attribution_lower
-        has_copyright_url = "openstreetmap.org/copyright" in attribution_lower
-        has_contributors = "contributors" in attribution_lower
-
-        if has_osm and (not has_copyright_url or not has_contributors):
-            source["attribution"] = MAPLIBRE_OSM_ATTRIBUTION
+        current = source.get("attribution")
+        if current != required_attribution:
+            source["attribution"] = required_attribution
             changed_flag[0] = True
             change_log.append(
-                f"      📝 Attribution '{source_name}': auf MapLibre-kompatibles OSM-Format gesetzt"
+                f"      📝 Attribution '{source_name}': auf '{required_attribution}' gesetzt"
             )
 
 def main():
@@ -280,7 +283,7 @@ def main():
             change_log.append(f"      📝 Font: \"{old}\" -> \"{new}\"")
 
         # Basemap-Attribution prüfen und ggf. auf MapLibre-kompatibles Format korrigieren
-        normalize_basemap_attribution(data, tileset, changed, change_log)
+        normalize_basemap_attribution(data, tileset, style_id, changed, change_log)
 
         # Sprite URL
         if SPRITE_URL_TEMPLATE:
