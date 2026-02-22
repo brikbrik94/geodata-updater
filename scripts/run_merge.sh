@@ -71,7 +71,7 @@ for list_file in "${LIST_FILES[@]}"; do
         fi
 
         # Liest den kompletten Stream, um späte Dekompressionsfehler zu erkennen.
-        if ! osmium cat -o /dev/null "$pbf" >/dev/null 2>&1; then
+        if ! osmium cat -f opl "$pbf" >/dev/null 2>&1; then
             log_error "Defekte OSM PBF erkannt (Stream/Dekompression): $pbf"
             INVALID_COUNT=$((INVALID_COUNT+1))
         fi

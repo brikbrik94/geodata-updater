@@ -61,7 +61,7 @@ validate_osm_pbf() {
     fi
 
     # fileinfo prüft Header, cat liest den gesamten Stream und findet Dekompressionsfehler zuverlässig.
-    osmium fileinfo "$pbf" >/dev/null 2>&1 && osmium cat -o /dev/null "$pbf" >/dev/null 2>&1
+    osmium fileinfo "$pbf" >/dev/null 2>&1 && osmium cat -f opl "$pbf" >/dev/null 2>&1
 }
 
 verify_md5_if_available() {
