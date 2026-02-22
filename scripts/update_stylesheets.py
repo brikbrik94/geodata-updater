@@ -78,15 +78,10 @@ FONT_MAP = {
     "Tahoma Regular": "Noto Sans Regular",
 }
 
-MAPLIBRE_OSM_ATTRIBUTION = (
-    '© <a href="https://www.openstreetmap.org/copyright" '
-    'target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
-)
 BASEMAP_AT_ATTRIBUTION = (
     '© <a href="https://www.basemap.at" '
     'target="_blank" rel="noopener noreferrer">basemap.at</a>'
 )
-BASEMAP_WITH_OSM_ATTRIBUTION = f"{BASEMAP_AT_ATTRIBUTION} | {MAPLIBRE_OSM_ATTRIBUTION}"
 
 # --- FUNKTIONEN ---
 
@@ -198,14 +193,14 @@ def resolve_sprite_tileset(mapping, tileset, style_id):
 
 
 def normalize_basemap_attribution(data, tileset, style_id, changed_flag, change_log):
-    """Sichert verpflichtende Attributionen für basemap.at und ergänzt OSM im MapLibre-Format."""
+    """Sichert verpflichtende basemap.at Attributionen für Basemap- und Contours-Styles."""
     sources = data.get("sources")
     if not isinstance(sources, dict):
         return
 
     required_attribution = None
     if tileset == "basemap-at":
-        required_attribution = BASEMAP_WITH_OSM_ATTRIBUTION
+        required_attribution = BASEMAP_AT_ATTRIBUTION
     elif tileset == "overlays" and style_id == "basemap-at-contours":
         required_attribution = BASEMAP_AT_ATTRIBUTION
 
