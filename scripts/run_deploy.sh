@@ -30,6 +30,11 @@ else
     exit 1
 fi
 
+# 3b. EXTERNES DEPLOYMENT (Plugins)
+if [ -f "$SCRIPT_DIR/deploy_external.sh" ]; then
+    "$SCRIPT_DIR/deploy_external.sh"
+fi
+
 # 4. Inventare erstellen (Tiles Inventory)
 # (Sprites und Fonts Inventory existieren bereits durch Setup/Assets)
 if [ -f "$SCRIPT_DIR/generate_tiles_inventory.sh" ]; then

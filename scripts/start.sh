@@ -37,6 +37,11 @@ fi
 # Phase 3: Konvertierung
 "$SCRIPT_DIR/run_pmtiles.sh"
 
+# Phase 3b: Externe Plugins aktualisieren
+if [ -f "$SCRIPT_DIR/run_external_updates.sh" ]; then
+    "$SCRIPT_DIR/run_external_updates.sh"
+fi
+
 # Phase 4: Deployment (Neuer Name!)
 "$SCRIPT_DIR/run_deploy.sh"
 

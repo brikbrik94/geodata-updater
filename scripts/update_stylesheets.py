@@ -10,6 +10,7 @@ TILES_BASE_URL = os.environ.get("TILES_BASE_URL", "").rstrip("/")
 ASSETS_BASE_URL = os.environ.get("ASSETS_BASE_URL", "").rstrip("/")
 ENDPOINTS_INFO_PATH = Path(os.environ.get("ENDPOINTS_INFO_PATH", "/srv/info/endpoints_info.json"))
 SPRITE_MAPPING_FILE = Path(os.environ.get("SPRITE_MAPPING_FILE", str(Path(__file__).resolve().parent.parent / "conf" / "sprite_mapping.json")))
+EXTERNAL_SPRITE_MAPPING = Path("/srv/info/sprite_mapping_external.json")
 
 # Templates
 SPRITE_URL_TEMPLATE = os.environ.get("SPRITE_URL_TEMPLATE", "").strip()
@@ -169,6 +170,17 @@ def load_sprite_mapping():
         if isinstance(sprite_set, str) and sprite_set.strip():
             mapping["default"] = sprite_set.strip()
 
+    # NEU: Externe Mappings laden (aus /srv/info/sprite_mapping_external.json)
+    if EXTERNAL_SPRITE_MAPPING.exists():
+        try:
+            ext = json.loads(EXTERNAL_SPRITE_MAPPING.read_text(encoding="utf-8"))
+            if isinstance(ext, dict):
+                for key, value in ext.items():
+                    if isinstance(key, str) and isinstance(value, str):
+                        mapping["styles"][key.strip()] = value.strip()
+        except Exception as e:
+            log_warn(f"Externe Sprite-Mappings konnten nicht gelesen werden: {e}")
+
     return mapping
 
 
@@ -218,6 +230,29 @@ def normalize_basemap_attribution(data, tileset, style_id, changed_flag, change_
             change_log.append(
                 f"      📝 Attribution '{source_name}': auf '{required_attribution}' gesetzt"
             )
+
+def find_pmtiles_url(filename, tileset_hint=None):
+    """Sucht die passende PMTiles-URL für einen Dateinamen."""
+    if not filename:
+        return None
+
+    # 1. Präzises Matching in den Inventar-Daten
+    for entry in tiles_entries:
+        # Match über Filename (und optional Tileset zur Eindeutigkeit)
+        if entry.get("pmtiles_file") == filename or entry.get("filename") == filename:
+            if tileset_hint and entry.get("tileset") != tileset_hint:
+                continue
+            
+            url = entry.get("pmtiles_internal") or entry.get("pmtiles_url")
+            if url:
+                return url if url.startswith("pmtiles://") else f"pmtiles://{url}"
+
+    # 2. Fallback: Manuell bauen
+    if TILES_BASE_URL:
+        t_set = tileset_hint or "overlays"
+        return f"pmtiles://{TILES_BASE_URL}/{t_set}/pmtiles/{filename}"
+    
+    return None
 
 def main():
     # Suche alle style.json Dateien
@@ -305,52 +340,36 @@ def main():
                 changed[0] = True
 
         # Sources URL (PMTiles)
-        if current_pmtiles:
-            pmtiles_url = None
-            
-            # Versuch 1: URL aus endpoints_info.json (Präzises Matching)
-            for entry in tiles_entries:
-                # Neues Format Check (datasets): Match über Dateiname + Tileset
-                if entry.get("filename") == current_pmtiles and entry.get("tileset") == tileset:
-                    pmtiles_url = entry.get("pmtiles_internal") or entry.get("pmtiles_url")
-                    if pmtiles_url: break
+        sources = data.get("sources", {})
+        if isinstance(sources, dict):
+            for s_key, source in sources.items():
+                if not isinstance(source, dict): continue
+                if source.get("type") != "vector": continue
+
+                old_url = source.get("url")
+                if not isinstance(old_url, str): continue
                 
-                # Altes Format Check (tiles) - Pfad-basiert
-                expected_path = (TILES_DIR / tileset / "pmtiles" / current_pmtiles).as_posix()
-                if entry.get("path") == expected_path:
-                    entry_url = entry.get("url")
-                    if entry_url:
-                        pmtiles_url = (
-                            entry_url if entry_url.startswith("pmtiles://") 
-                            else f"pmtiles://{entry_url}"
-                        )
-                    break
-            
-            # Versuch 2: Manuell bauen (Fallback)
-            if not pmtiles_url and TILES_BASE_URL:
-                # relative_path wäre z.B. osm/pmtiles/at.pmtiles
-                pmtiles_url = f"pmtiles://{TILES_BASE_URL}/{tileset}/pmtiles/{current_pmtiles}"
-            
-            if pmtiles_url:
-                sources = data.get("sources", {})
-                if isinstance(sources, dict):
-                    for s_key, source in sources.items():
-                        if not isinstance(source, dict): continue
-                        
-                        old_url = source.get("url")
-                        should_update = False
-                        
-                        # Nur bestimmte Quellen updaten
-                        if tileset == "osm" and s_key == "openmaptiles":
-                            should_update = True
-                        elif source.get("type") == "vector" and "url" in source:
-                            should_update = True
-                        
-                        if should_update and isinstance(old_url, str):
-                            if old_url != pmtiles_url:
-                                change_log.append(f"      📝 Source '{s_key}': ... -> \"{current_pmtiles}\"")
-                                source["url"] = pmtiles_url
-                                changed[0] = True
+                # Ziel-Filename extrahieren oder bestimmen
+                # Falls in der URL schon ein pmtiles Filename steht, nehmen wir den
+                target_filename = None
+                if ".pmtiles" in old_url:
+                    target_filename = old_url.split("/")[-1].split("?")[0]
+                
+                # Spezialfall OSM
+                if tileset == "osm" and s_key == "openmaptiles":
+                    target_filename = current_pmtiles or target_filename or f"{style_id}.pmtiles"
+                
+                # Falls wir bisher nichts haben, versuchen wir es mit der style_id
+                if not target_filename:
+                    target_filename = f"{style_id}.pmtiles"
+                
+                # URL auflösen
+                new_url = find_pmtiles_url(target_filename, tileset)
+                
+                if new_url and new_url != old_url:
+                    change_log.append(f"      📝 Source '{s_key}': ... -> \"{target_filename}\"")
+                    source["url"] = new_url
+                    changed[0] = True
 
         # Speichern
         if changed[0]:

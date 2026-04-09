@@ -1,0 +1,5 @@
+# Liste der externen Geodata-Repositories (Plugins)
+# Pfade müssen absolut sein oder relativ zum Home-Verzeichnis (z.B. ~/git/overlays).
+# Ein Repository muss einen 'dist/' Ordner mit 'manifest.json' enthalten.
+
+/root/git/overlays
