@@ -27,6 +27,7 @@ export GLYPHS_URL_TEMPLATE="${GLYPHS_URL_TEMPLATE:-}"
 # Falls du manuelle Mappings hast
 export PMTILES_FILE_MAP="${PMTILES_FILE_MAP:-}"
 export PMTILES_FILE="${PMTILES_FILE:-}"
+export EXTERNAL_REPOS_CONF="$(dirname "$SCRIPT_DIR")/conf/external_repos.txt"
 
 # Python Skript Pfad
 PYTHON_SCRIPT="$SCRIPT_DIR/update_stylesheets.py"

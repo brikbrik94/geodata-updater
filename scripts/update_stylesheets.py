@@ -10,7 +10,7 @@ TILES_BASE_URL = os.environ.get("TILES_BASE_URL", "").rstrip("/")
 ASSETS_BASE_URL = os.environ.get("ASSETS_BASE_URL", "").rstrip("/")
 ENDPOINTS_INFO_PATH = Path(os.environ.get("ENDPOINTS_INFO_PATH", "/srv/info/endpoints_info.json"))
 SPRITE_MAPPING_FILE = Path(os.environ.get("SPRITE_MAPPING_FILE", str(Path(__file__).resolve().parent.parent / "conf" / "sprite_mapping.json")))
-EXTERNAL_SPRITE_MAPPING = Path("/srv/info/sprite_mapping_external.json")
+EXTERNAL_REPOS_CONF = Path(os.environ.get("EXTERNAL_REPOS_CONF", str(Path(__file__).resolve().parent.parent / "conf" / "external_repos.txt")))
 
 # Templates
 SPRITE_URL_TEMPLATE = os.environ.get("SPRITE_URL_TEMPLATE", "").strip()
@@ -115,71 +115,71 @@ def replace_fonts(node, changed_flag, replacements, parent_key=None):
 def load_sprite_mapping():
     mapping = {"default": None, "tilesets": {}, "styles": {}}
 
-    if not SPRITE_MAPPING_FILE.exists():
-        return mapping
-
-    try:
-        raw = json.loads(SPRITE_MAPPING_FILE.read_text(encoding="utf-8"))
-    except Exception as e:
-        log_warn(f"Sprite-Mapping konnte nicht gelesen werden ({SPRITE_MAPPING_FILE}): {e}")
-        return mapping
-
-    if not isinstance(raw, dict):
-        log_warn(f"Sprite-Mapping hat ungültiges Format: {SPRITE_MAPPING_FILE}")
-        return mapping
-
-    # v1 (legacy): {default, tilesets: {tileset: sprite}, styles: {tileset/style: sprite}}
-    default = raw.get("default")
-    if isinstance(default, str) and default.strip():
-        mapping["default"] = default.strip()
-
-    tilesets = raw.get("tilesets")
-    if isinstance(tilesets, dict):
-        for key, value in tilesets.items():
-            if not isinstance(key, str) or not key.strip():
-                continue
-
-            # v1 direct string
-            if isinstance(value, str) and value.strip():
-                mapping["tilesets"][key.strip()] = value.strip()
-                continue
-
-            # v2 object: {sprite_set: "...", styles: {style_id: "..."}}
-            if isinstance(value, dict):
-                sprite_set = value.get("sprite_set")
-                if isinstance(sprite_set, str) and sprite_set.strip():
-                    mapping["tilesets"][key.strip()] = sprite_set.strip()
-
-                style_map = value.get("styles")
-                if isinstance(style_map, dict):
-                    for style_id, sprite in style_map.items():
-                        if isinstance(style_id, str) and isinstance(sprite, str) and style_id.strip() and sprite.strip():
-                            mapping["styles"][f"{key.strip()}/{style_id.strip()}"] = sprite.strip()
-
-    # v1 top-level style overrides
-    styles = raw.get("styles")
-    if isinstance(styles, dict):
-        for key, value in styles.items():
-            if isinstance(key, str) and isinstance(value, str) and key.strip() and value.strip():
-                mapping["styles"][key.strip()] = value.strip()
-
-    # v2 defaults block
-    defaults = raw.get("defaults")
-    if isinstance(defaults, dict):
-        sprite_set = defaults.get("sprite_set")
-        if isinstance(sprite_set, str) and sprite_set.strip():
-            mapping["default"] = sprite_set.strip()
-
-    # NEU: Externe Mappings laden (aus /srv/info/sprite_mapping_external.json)
-    if EXTERNAL_SPRITE_MAPPING.exists():
+    # 1. Interne Mappings laden (statisch konfiguriert)
+    if SPRITE_MAPPING_FILE.exists():
         try:
-            ext = json.loads(EXTERNAL_SPRITE_MAPPING.read_text(encoding="utf-8"))
-            if isinstance(ext, dict):
-                for key, value in ext.items():
-                    if isinstance(key, str) and isinstance(value, str):
-                        mapping["styles"][key.strip()] = value.strip()
+            raw = json.loads(SPRITE_MAPPING_FILE.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                # v1 (legacy): {default, tilesets: {tileset: sprite}, styles: {tileset/style: sprite}}
+                default = raw.get("default")
+                if isinstance(default, str) and default.strip():
+                    mapping["default"] = default.strip()
+
+                tilesets = raw.get("tilesets")
+                if isinstance(tilesets, dict):
+                    for key, value in tilesets.items():
+                        if not isinstance(key, str) or not key.strip(): continue
+                        # v1 direct string
+                        if isinstance(value, str) and value.strip():
+                            mapping["tilesets"][key.strip()] = value.strip()
+                        # v2 object: {sprite_set: "...", styles: {style_id: "..."}}
+                        elif isinstance(value, dict):
+                            sprite_set = value.get("sprite_set")
+                            if isinstance(sprite_set, str) and sprite_set.strip():
+                                mapping["tilesets"][key.strip()] = sprite_set.strip()
+                            style_map = value.get("styles")
+                            if isinstance(style_map, dict):
+                                for style_id, sprite in style_map.items():
+                                    if isinstance(style_id, str) and isinstance(sprite, str):
+                                        mapping["styles"][f"{key.strip()}/{style_id.strip()}"] = sprite.strip()
+
+                styles = raw.get("styles")
+                if isinstance(styles, dict):
+                    for key, value in styles.items():
+                        if isinstance(key, str) and isinstance(value, str):
+                            mapping["styles"][key.strip()] = value.strip()
+
+                defaults = raw.get("defaults")
+                if isinstance(defaults, dict):
+                    sprite_set = defaults.get("sprite_set")
+                    if isinstance(sprite_set, str) and sprite_set.strip():
+                        mapping["default"] = sprite_set.strip()
         except Exception as e:
-            log_warn(f"Externe Sprite-Mappings konnten nicht gelesen werden: {e}")
+            log_warn(f"Sprite-Mapping konnte nicht gelesen werden ({SPRITE_MAPPING_FILE}): {e}")
+
+    # 2. NEU: Dynamisch aus externen Plugins laden (Single Source of Truth)
+    if EXTERNAL_REPOS_CONF.exists():
+        try:
+            with open(EXTERNAL_REPOS_CONF, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"): continue
+                    
+                    repo_path = Path(os.path.expanduser(line))
+                    manifest_file = repo_path / "dist" / "manifest.json"
+                    
+                    if manifest_file.exists():
+                        manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+                        tileset = manifest.get("tileset", "overlays")
+                        datasets = manifest.get("datasets", []) or manifest.get("overlays", [])
+                        
+                        for ds in datasets:
+                            ds_id = ds.get("id")
+                            sprite_id = ds.get("sprite_id") or ds.get("sprite")
+                            if ds_id and sprite_id:
+                                mapping["styles"][f"{tileset}/{ds_id}"] = sprite_id
+        except Exception as e:
+            log_warn(f"Fehler beim Laden externer Manifeste für Sprite-Mapping: {e}")
 
     return mapping
 

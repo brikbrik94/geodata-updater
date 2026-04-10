@@ -8,28 +8,12 @@ from pathlib import Path
 # --- KONFIGURATION ---
 TILES_DIR = Path(os.environ.get("TILES_DIR", "/srv/tiles"))
 ASSETS_DIR = Path(os.environ.get("ASSETS_DIR", "/srv/assets"))
-CONF_FILE = Path(os.environ.get("EXTERNAL_REPOS_CONF", str(Path(__file__).resolve().parent.parent / "conf" / "sprite_mapping.json")))
-EXTERNAL_MAPPING_FILE = Path("/srv/info/sprite_mapping_external.json")
+CONF_FILE = Path(os.environ.get("EXTERNAL_REPOS_CONF", str(Path(__file__).resolve().parent.parent / "conf" / "external_repos.txt")))
 
 def log_info(msg): print(f"   ℹ️  {msg}")
 def log_success(msg): print(f"   ✅ {msg}")
 def log_warn(msg): print(f"   ⚠️  {msg}")
 def log_error(msg): print(f"   ❌ {msg}")
-
-def update_external_mapping(tileset, style_id, sprite_id):
-    """Speichert die Sprite-Zuweisung für einen externen Datensatz."""
-    mapping = {}
-    if EXTERNAL_MAPPING_FILE.exists():
-        try:
-            mapping = json.loads(EXTERNAL_MAPPING_FILE.read_text(encoding="utf-8"))
-        except: pass
-    
-    key = f"{tileset}/{style_id}"
-    if mapping.get(key) != sprite_id:
-        mapping[key] = sprite_id
-        EXTERNAL_MAPPING_FILE.parent.mkdir(parents=True, exist_ok=True)
-        EXTERNAL_MAPPING_FILE.write_text(json.dumps(mapping, indent=2, sort_keys=True), encoding="utf-8")
-        log_info(f"Mapping aktualisiert: {key} -> {sprite_id}")
 
 def copy_file(src, dst, label):
     if not src.exists():
@@ -106,11 +90,6 @@ def process_repo(repo_path):
             
             if style_src and copy_file(style_src, style_dst, "Style"):
                 log_success(f"Deployed: {tileset}/styles/{ds_id}/style.json")
-                
-                # Sprite Mapping aktualisieren (falls im Datensatz definiert)
-                sprite_id = ds.get("sprite_id") or ds.get("sprite")
-                if sprite_id:
-                    update_external_mapping(tileset, ds_id, sprite_id)
 
     # 3. Ressourcen (Sprites / Fonts)
     resources = manifest.get("resources", {})
