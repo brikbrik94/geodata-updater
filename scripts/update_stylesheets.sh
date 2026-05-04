@@ -34,7 +34,7 @@ PYTHON_SCRIPT="$SCRIPT_DIR/update_stylesheets.py"
 
 # --- AUSFÜHREN ---
 if [ -f "$PYTHON_SCRIPT" ]; then
-    python3 "$PYTHON_SCRIPT"
+    python3 "$PYTHON_SCRIPT" "$@"
 else
     log_error "Python-Worker nicht gefunden: $PYTHON_SCRIPT"
     exit 1

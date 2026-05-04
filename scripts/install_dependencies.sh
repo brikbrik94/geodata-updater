@@ -15,10 +15,8 @@ echo "👉 Update Paketlisten..."
 apt-get update
 
 # 2. Pakete installieren
-# Liste basiert auf deinem ursprünglichen Setup
-# osmium-tool: Für den Merge (läuft lokal)
-# docker: Für Planetiler & ORS
-# nodejs/npm/golang/librsvg2-bin: Für Assets/Sprites (zukünftig)
+# Wir installieren nur noch das Nötigste für Assets (Fonts/Sprites) und Python.
+# osmium-tool, aria2 und golang wurden in die externen Repos ausgelagert.
 echo "👉 Installiere Pakete..."
 apt-get install -y \
     wget \
@@ -27,14 +25,11 @@ apt-get install -y \
     unzip \
     tree \
     acl \
-    osmium-tool \
     python3 \
     python3-venv \
     docker.io \
     docker-cli \
     nodejs \
-    npm \
-    golang \
-    librsvg2-bin
+    npm
 
 echo "✅ Abhängigkeiten installiert."

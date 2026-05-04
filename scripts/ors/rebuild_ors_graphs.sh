@@ -3,8 +3,8 @@ set -euo pipefail
 
 # 1. Utils & Config laden
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "$SCRIPT_DIR/utils.sh" ]; then
-    source "$SCRIPT_DIR/utils.sh"
+if [ -f "$SCRIPT_DIR/../utils.sh" ]; then
+    source "$SCRIPT_DIR/../utils.sh"
 else
     echo "❌ Fehler: utils.sh nicht gefunden!"
     exit 1

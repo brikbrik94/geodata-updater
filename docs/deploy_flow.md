@@ -1,60 +1,47 @@
-# Deployment Script Ablauf
+# Geodata Pipeline Ablauf (Mermaid Diagramm)
+
+Die folgende Darstellung zeigt den aktuellen Ablauf der Pipeline basierend auf der Plugin-Architektur.
 
 ```mermaid
 flowchart TD
-  start[start.sh] --> run_download[run_download.sh]
-  start --> run_merge[run_merge.sh]
-  start --> run_pmtiles[run_pmtiles.sh]
-  start --> run_ors[run_ors.sh (optional)]
-
-  run_download --> download_osm[download_osm.sh]
-  run_merge --> merge_osm[merge_osm.sh]
-
-  run_pmtiles --> convert_osm[convert_osm_pmtiles.sh]
-  run_pmtiles --> convert_basemap[convert_basemap_at_pmtiles.sh]
-  run_pmtiles --> convert_contours[convert_basemap_contours_pmtiles.sh]
-
-  deploy_all[deploy_all.sh] --> deploy_pmtiles[deploy_pmtiles.sh]
-  deploy_all --> deploy_stylesheets[deploy_stylesheets.sh]
-  deploy_all --> generate_info[Info-Datei erzeugen\n(deploy_info.json)]
-  deploy_pmtiles --> tiles_dir[/srv/tiles/<tileset>/pmtiles/*.pmtiles]
-  deploy_stylesheets --> styles_dir[/srv/tiles/<tileset>/styles/<style-id>/style.json]
-```
-
-Die Info-Datei wird nach den beiden Deployments generiert und listet je Tileset
-alle gefundenen PMTiles sowie Stylesheets inklusive Pfad und optionaler URL.
-
-
-
-# Deployment Script Ablauf
-
-```mermaid
-flowchart TD
-  start[start.sh] --> run_download[run_download.sh]
-  start --> run_merge[run_merge.sh]
-  start --> run_pmtiles[run_pmtiles.sh]
-  start --> run_ors[run_ors.sh (optional)]
-
-  subgraph "Multi-Map Loop"
-    run_download --> download_loop{Für jede .txt Quelle}
-    download_loop --> download_osm[download_osm.sh]
+  start[scripts/start.sh] --> run_ext[scripts/run_external_updates.sh]
+  
+  subgraph "Plugin Phase (Extern)"
+    run_ext --> plugin_osm[geodata-osm / update.sh]
+    run_ext --> plugin_base[geodata-basemap-at / update.sh]
+    run_ext --> plugin_ski[geodata-openskimap / update.sh]
     
-    run_merge --> merge_loop{Für jede .list}
-    merge_loop --> merge_osm[merge_osm.sh]
-
-    run_pmtiles --> planetiler_loop{Für jedes .pbf}
-    planetiler_loop --> convert_osm[convert_osm_pmtiles.sh]
+    plugin_osm --> dist_osm[dist/ folder]
+    plugin_base --> dist_base[dist/ folder]
+    plugin_ski --> dist_ski[dist/ folder]
   end
 
-  run_download --> download_basemap[Basemap.at Downloads]
+  start --> run_deploy[scripts/run_deploy.sh]
 
-  run_pmtiles --> convert_basemap[convert_basemap_at_pmtiles.sh]
+  subgraph "Deployment Phase"
+    run_deploy --> deploy_ext[scripts/deploy_external.py]
+    deploy_ext --> copy_data[Kopiere PMTiles, Styles & Assets\nnach /srv/tiles und /srv/assets]
+    
+    run_deploy --> run_inv[scripts/run_inventory.py]
+    run_inv --> inv_tiles[inventory/tiles.py]
+    run_inv --> inv_sprites[inventory/sprites.py]
+    run_inv --> inv_fonts[inventory/fonts.sh]
+    run_inv --> inv_agg[inventory/aggregate.py]
+    
+    inv_agg --> master_json[info/endpoints_info.json]
+    
+    run_deploy --> patch_styles[scripts/update_stylesheets.py]
+    patch_styles --> final_styles[Finalisierte Styles mit\nabsoluten URLs]
+  end
 
-  deploy_all[deploy_all.sh] --> deploy_pmtiles[deploy_pmtiles.sh]
-  deploy_all --> deploy_stylesheets[deploy_stylesheets.sh]
-  
-  deploy_stylesheets --> style_logic[Auto-Generate Style Folders]
-  style_logic --> update_urls[update_stylesheets.sh]
+  master_json --> patch_styles
+  copy_data --> run_inv
 ```
 
-Die `deploy_all.sh` sorgt am Ende dafür, dass PMTiles und Styles synchronisiert und die Info-JSONs für das Frontend generiert werden.
+## Beschreibung des Ablaufs
+
+1. **Orchestrierung:** `start.sh` triggert die Aktualisierung aller in `conf/external_repos.txt` definierten Plugins.
+2. **Plugins:** Jedes Plugin baut seine Daten eigenständig und stellt sie im `dist/` Verzeichnis bereit.
+3. **Deployment:** `deploy_external.py` sammelt alle Daten basierend auf den `manifest.json` Dateien ein.
+4. **Inventarisierung:** Alle verfügbaren Daten auf dem Server werden neu erfasst und in einer zentralen Master-JSON zusammengefasst.
+5. **Finalisierung:** Die Stylesheets werden dynamisch an die aktuelle Server-Konfiguration (URLs) angepasst.

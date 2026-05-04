@@ -1,140 +1,45 @@
+# Technische Referenz (Geodata Updater)
 
-# Technische Referenz
+## 1. Plugin-Konzept (External Repos)
 
+Der Geodata-Updater fungiert als Orchestrator. Die eigentliche Datenverarbeitung (Download, Merge, Konvertierung) findet in eigenständigen Repositories ("Plugins") statt.
 
+- **Konfiguration:** `conf/external_repos.txt` enthält die absoluten Pfade zu den Plugins auf dem Server (z.B. `/mnt/geodata/geodata-osm`).
+- **Update-Hook:** Die Pipeline ruft in jedem Plugin die `update.sh` auf (falls vorhanden und ausführbar).
+- **Deployment-Standard:** Plugins stellen ihre Artefakte im Ordner `dist/` bereit und beschreiben diese in der `manifest.json`. Details siehe [📄 Plugin-Standard](EXTERNAL_PLUGINS.md).
 
-## 1. Basemap.at Module
+## 2. Deployment-Prozess (Workflow)
 
+Die Pipeline (`start.sh`) führt folgende Schritte nach dem Bau der Plugin-Daten aus:
 
+### A. Deployment-Phasen (`run_deploy.sh`)
+1. **Externes Deployment:** `deploy_external.py` scannt alle Plugins, kopiert PMTiles, Styles und Assets in den Map-Root.
+2. **Inventar-Erstellung:** `run_inventory.py` orchestriert die Erstellung der Inventare:
+   - `inventory/tiles.py`: Scannt `/srv/tiles` nach PMTiles und Styles.
+   - `inventory/sprites.py`: Scannt `/srv/assets/sprites`.
+   - `inventory/fonts.sh`: Scannt `/srv/assets/fonts`.
+   - `inventory/aggregate.py`: Aggregiert alles zur `endpoints_info.json`.
+3. **Stylesheet-Update:** `update_stylesheets.py` patcht alle `style.json` Dateien mit absoluten URLs basierend auf den Inventar-Daten.
 
-Das System enthält spezielle Logik für österreichische Regierungsdaten.
+### B. Asset-Management (`run_assets.sh`)
+- **Fonts:** Werden durch `install_fonts.sh` aus dem OpenMapTiles Repository generiert.
+- **Sprites:** `build_sprites.sh` nutzt Docker (`spreet`), um die globalen Maki- und Temaki-Sets zu bauen.
 
+## 3. Spezial-Komponenten
 
+### OpenRouteService (ORS)
+- **Skript:** `scripts/ors/rebuild_ors_graphs.sh` (Manueller Aufruf empfohlen).
+- **Funktion:** Kopiert eine fertige PBF-Datei aus einem Plugin (z.B. OSM) in den ORS-Datenordner und triggert den Neubau der Graphen.
 
-### Vektorkarten (VTPK)
+### Wartung (Cleanup)
+- **Skript:** `scripts/tools/cleanup_tiles.py`
+- **Funktion:** Vergleicht den Stand in `/srv/tiles` mit den aktuell konfigurierten Plugins und bietet an, verwaiste Dateien (von alten oder gelöschten Plugins) zu entfernen.
 
-- **Skript:** `scripts/download_basemap.sh`
+## 4. Administrations-Befehle
 
-- **Quelle:** `https://cdn.basemap.at/offline/bmapv_vtpk_3857.vtpk`
-
-- **Logik:** Die Datei wird nur heruntergeladen, wenn die lokale Datei älter als **2 Monate** ist (um Bandbreite zu sparen).
-
-- **Ziel:** `/srv/build/basemap-at/src/bmapv_vtpk_3857.vtpk`
-
-- **Konvertierung:** Erfolgt durch `scripts/convert_basemap_at_pmtiles.sh` (entpackt VTPK -> konvertiert zu PMTiles).
-
-
-
-### Höhenlinien (Contours)
-
-- **Skript:** `scripts/download_basemap_contours.sh`
-
-- **Quelle:** `https://cdn.basemap.at/offline/bmapvhl_vtpk_3857.vtpk`
-
-- **Logik:** Download erfolgt nur, wenn die Datei gar nicht existiert.
-
-- **Force Download:** Kann mit `FORCE_DOWNLOAD=1` erzwungen werden.
-
-- **Ziel:** `/srv/build/overlays/contours/src/bmapvhl_vtpk_3857.vtpk`
-
-
-
-## 2. OpenRouteService (ORS) Integration
-
-
-
-Das System kann nach dem Karten-Update einen Neubau der Routing-Graphen anstoßen.
-
-
-
-**Manueller Trigger:**
-
-```bash
-
-/srv/scripts/start.sh --rebuild-ors
-
-```
-
-
-
-**Interne Logik:**
-
-Das Skript `scripts/rebuild_ors_graphs.sh` prüft:
-
-1. Existiert `/srv/ors/rebuild_graphs.sh`? -> Ausführen.
-
-2. Wenn nicht: Führt den in `ORS_REBUILD_CMD` definierten Fallback-Befehl aus.
-
-
-
-**Verzeichnisse:**
-
-Logs für ORS landen in `/srv/ors/logs` oder `/var/log/osm_update.log`.
-
-
-
-## 3. Styling System (Details)
-
-
-
-Das System nutzt eine "Convention over Configuration" Logik.
-
-
-
-**Der Prozess:**
-
-1. **Vorlage:** `styles/style.json` (im Repo) ist das Master-Template.
-
-2. **Generierung:** `scripts/deploy_stylesheets.sh` scannt alle generierten PMTiles (`*.pmtiles`).
-
-3. **Erstellung:**
-
-   - Für `osm:tirol.pmtiles` wird der Ordner `styles/tirol/` erstellt.
-
-   - Die `style.json` wird hineinkopiert.
-
-4. **Anpassung:** `scripts/update_stylesheets.sh` ersetzt Platzhalter in der JSON mit echten Server-URLs:
-
-   - `sources` -> zeigt auf lokale PMTiles.
-
-   - `glyphs` -> zeigt auf `/srv/assets/fonts`.
-
-   - `sprite` -> zeigt auf `/srv/assets/sprites`.
-
-
-
-## 4. Manuelle Skript-Ausführung
-
-
-
-Die Pipeline besteht aus modularen Skripten, die einzeln nutzbar sind:
-
-
-
-- **`run_download.sh`**:
-
-  - Liest `conf/sources/*.txt`.
-
-  - Lädt OSM PBFs (nur wenn neuer: `wget -N`).
-
-  - Lädt Basemap.at Daten (nach Zeit-Regeln).
-
-  - Erstellt `.list` Dateien für den Merge.
-
-
-
-- **`run_merge.sh`**:
-
-  - Nutzt `osmium-tool`.
-
-  - Merged alle Dateien aus einer `.list` zu einer `.osm.pbf`.
-
-
-
-- **`run_pmtiles.sh`**:
-
-  - Startet Docker (`onthegomap/planetiler`).
-
-  - Konvertiert `.osm.pbf` -> `.pmtiles`.
-
-  - Generiert Metadaten-JSON.
+| Befehl | Zweck |
+| :--- | :--- |
+| `/srv/scripts/start.sh` | Standard-Lauf (Update Plugins + Deploy). |
+| `/srv/scripts/run_assets.sh` | Initialer Bau oder Update von Fonts & Sprites. |
+| `/srv/scripts/tools/deploy_scripts.sh` | Synchronisiert Skripte aus dem Git-Repo nach `/srv/scripts`. |
+| `/srv/scripts/tools/cleanup_tiles.py` | Entfernt alte Kartenleichen. |

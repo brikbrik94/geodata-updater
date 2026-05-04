@@ -17,9 +17,9 @@ def classify_tileset_type(tileset_name):
     """
     Klassifiziert den fachlichen Typ eines Tilesets für APIs/UI.
     """
-    if tileset_name in {"osm", "basemap-at"}:
+    if tileset_name in {"osm", "basemap-at", "basemaps"}:
         return "basemap"
-    if tileset_name == "overlays":
+    if tileset_name in {"overlay", "overlays"}:
         return "overlay"
     if tileset_name == "elevation":
         return "elevation"
@@ -30,6 +30,8 @@ def main():
         print(f"❌ Fehler: Tiles Verzeichnis {TILES_DIR} existiert nicht.")
         return
 
+    # NEU: Wir erstellen das Inventar IMMER komplett neu (kein Appending)
+    print(f"🔍 Generiere frisches Tiles-Inventar aus: {TILES_DIR}")
     datasets = []
     
     # Sortierte Liste der Tilesets
@@ -104,11 +106,16 @@ def main():
     }
     
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Atomares Schreiben via Temp-Datei
+    temp_file = OUTPUT_FILE.with_suffix(".tmp")
     try:
-        OUTPUT_FILE.write_text(json.dumps(output_data, indent=2), encoding="utf-8")
-        print(f"✅ Tiles Inventory gespeichert: {OUTPUT_FILE}")
+        temp_file.write_text(json.dumps(output_data, indent=2), encoding="utf-8")
+        temp_file.replace(OUTPUT_FILE)
+        print(f"✅ Tiles Inventory erfolgreich neu erstellt: {OUTPUT_FILE}")
     except Exception as e:
-        print(f"❌ Fehler beim Schreiben: {e}")
+        if temp_file.exists(): temp_file.unlink()
+        print(f"❌ Fehler beim Schreiben des Inventars: {e}")
 
 if __name__ == "__main__":
     main()

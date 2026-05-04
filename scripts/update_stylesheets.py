@@ -54,9 +54,13 @@ if ENDPOINTS_INFO_PATH.exists():
         if not tiles_entries:
             tiles_entries = info_data.get("tiles", []) or []
 
-        # Fallback: Falls URL im Env fehlt, nimm die aus der JSON
+        # Fallback: Falls URL im Env fehlt, nimm die aus der JSON (unter 'meta')
+        meta = info_data.get("meta", {})
         if not TILES_BASE_URL:
-            TILES_BASE_URL = (info_data.get("tiles_base_url") or "").rstrip("/")
+            TILES_BASE_URL = (meta.get("tiles_base_url") or info_data.get("tiles_base_url") or "").rstrip("/")
+        if not ASSETS_BASE_URL:
+            ASSETS_BASE_URL = (meta.get("assets_base_url") or info_data.get("assets_base_url") or "").rstrip("/")
+            
     except Exception as e:
         log_warn(f"Fehler beim Lesen von endpoints_info.json: {e}")
 
@@ -112,52 +116,58 @@ def replace_fonts(node, changed_flag, replacements, parent_key=None):
 
 
 
-def load_sprite_mapping():
-    mapping = {"default": None, "tilesets": {}, "styles": {}}
+def load_external_mappings():
+    """
+    Lädt Mappings für Sprites und PMTiles aus internen Configs und externen Manifesten.
+    Returns: {
+        "sprites": {"tileset/style_id": "sprite_id", ...},
+        "pmtiles": {"tileset/style_id": "filename.pmtiles", ...},
+        "default_sprite": "..."
+    }
+    """
+    mapping = {
+        "default_sprite": None,
+        "sprites": {},
+        "pmtiles": {}
+    }
 
     # 1. Interne Mappings laden (statisch konfiguriert)
     if SPRITE_MAPPING_FILE.exists():
         try:
             raw = json.loads(SPRITE_MAPPING_FILE.read_text(encoding="utf-8"))
             if isinstance(raw, dict):
-                # v1 (legacy): {default, tilesets: {tileset: sprite}, styles: {tileset/style: sprite}}
+                # Legacy Support / v1
                 default = raw.get("default")
                 if isinstance(default, str) and default.strip():
-                    mapping["default"] = default.strip()
+                    mapping["default_sprite"] = default.strip()
 
                 tilesets = raw.get("tilesets")
                 if isinstance(tilesets, dict):
                     for key, value in tilesets.items():
-                        if not isinstance(key, str) or not key.strip(): continue
-                        # v1 direct string
                         if isinstance(value, str) and value.strip():
-                            mapping["tilesets"][key.strip()] = value.strip()
-                        # v2 object: {sprite_set: "...", styles: {style_id: "..."}}
+                            # Hier können wir noch keine style-id zuordnung machen
+                            pass
                         elif isinstance(value, dict):
-                            sprite_set = value.get("sprite_set")
-                            if isinstance(sprite_set, str) and sprite_set.strip():
-                                mapping["tilesets"][key.strip()] = sprite_set.strip()
+                            # v2 object: {sprite_set: "...", styles: {style_id: "..."}}
                             style_map = value.get("styles")
                             if isinstance(style_map, dict):
                                 for style_id, sprite in style_map.items():
-                                    if isinstance(style_id, str) and isinstance(sprite, str):
-                                        mapping["styles"][f"{key.strip()}/{style_id.strip()}"] = sprite.strip()
+                                    mapping["sprites"][f"{key}/{style_id}"] = sprite
 
                 styles = raw.get("styles")
                 if isinstance(styles, dict):
                     for key, value in styles.items():
-                        if isinstance(key, str) and isinstance(value, str):
-                            mapping["styles"][key.strip()] = value.strip()
+                        mapping["sprites"][key] = value
 
                 defaults = raw.get("defaults")
                 if isinstance(defaults, dict):
                     sprite_set = defaults.get("sprite_set")
-                    if isinstance(sprite_set, str) and sprite_set.strip():
-                        mapping["default"] = sprite_set.strip()
+                    if isinstance(sprite_set, str):
+                        mapping["default_sprite"] = sprite_set
         except Exception as e:
             log_warn(f"Sprite-Mapping konnte nicht gelesen werden ({SPRITE_MAPPING_FILE}): {e}")
 
-    # 2. NEU: Dynamisch aus externen Plugins laden (Single Source of Truth)
+    # 2. Dynamisch aus externen Plugins laden (Single Source of Truth)
     if EXTERNAL_REPOS_CONF.exists():
         try:
             with open(EXTERNAL_REPOS_CONF, "r") as f:
@@ -170,37 +180,50 @@ def load_sprite_mapping():
                     
                     if manifest_file.exists():
                         manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
-                        tileset = manifest.get("tileset", "overlays")
+                        global_tileset = manifest.get("tileset", "overlays")
                         datasets = manifest.get("datasets", []) or manifest.get("overlays", [])
-                        
                         for ds in datasets:
                             ds_id = ds.get("id")
+                            if not ds_id: continue
+
+                            # Deployment-Logik replizieren
+                            ds_type = ds.get("type", global_tileset)
+                            if ds_type in ["basemap", "basemaps"]:
+                                tileset_dir = "basemaps"
+                            elif ds_type in ["overlay", "overlays"]:
+                                tileset_dir = "overlays"
+                            else:
+                                tileset_dir = ds_type
+
+                            style_key = f"{tileset_dir}/{ds_id}"
+
+
+                            # Sprite mapping
                             sprite_id = ds.get("sprite_id") or ds.get("sprite")
-                            if ds_id and sprite_id:
-                                mapping["styles"][f"{tileset}/{ds_id}"] = sprite_id
+                            if sprite_id:
+                                mapping["sprites"][style_key] = sprite_id
+                            
+                            # PMTiles mapping
+                            # deploy_external.py verwendet immer {ds_id}.pmtiles als Zielname
+                            mapping["pmtiles"][style_key] = f"{ds_id}.pmtiles"
         except Exception as e:
-            log_warn(f"Fehler beim Laden externer Manifeste für Sprite-Mapping: {e}")
+            log_warn(f"Fehler beim Laden externer Manifeste: {e}")
 
     return mapping
 
 
-def resolve_sprite_tileset(mapping, tileset, style_id):
+def resolve_sprite_set(mapping, tileset, style_id):
     style_key = f"{tileset}/{style_id}"
 
-    if style_key in mapping["styles"]:
-        return mapping["styles"][style_key]
+    if style_key in mapping["sprites"]:
+        return mapping["sprites"][style_key]
 
-    if tileset in mapping["tilesets"]:
-        return mapping["tilesets"][tileset]
+    if mapping["default_sprite"]:
+        return mapping["default_sprite"].replace("{tileset}", tileset).replace("{style_id}", style_id)
 
-    if mapping["default"]:
-        return mapping["default"].replace("{tileset}", tileset).replace("{style_id}", style_id)
-
-    # Kompatibilitäts-Fallback (altes Verhalten)
-    if tileset == "osm":
-        return "temaki"
-    if tileset == "overlays" and style_id == "openskimap":
-        return "openskimap"
+    # Fallbacks
+    if tileset == "osm": return "temaki"
+    if style_id == "openskimap": return "openskimap"
     return tileset
 
 
@@ -254,47 +277,41 @@ def find_pmtiles_url(filename, tileset_hint=None):
     
     return None
 
+# --- KONFIGURATION ---
+TILES_DIR = Path(os.environ.get("TILES_DIR", "/srv/tiles"))
+STATE_DIR = Path("/tmp/geodata_state")
+# ... (restliche Pfade bleiben gleich)
+
 def main():
+    # Argument-Prüfung
+    force = "--force" in sys.argv
+
+    # Check ob Updates vorliegen
+    if not force:
+        has_tiles_update = (STATE_DIR / "updated_tiles").exists()
+        has_master_update = (STATE_DIR / "updated_master").exists()
+        
+        if not (has_tiles_update or has_master_update):
+            print("📦 [Styles] Überspringe Stylesheet-Update (keine Änderungen).")
+            return
+
     # Suche alle style.json Dateien
     style_files = sorted(TILES_DIR.glob("*/styles/*/style.json"))
     if not style_files:
         log_error(f"Keine style.json Dateien unter {TILES_DIR} gefunden.")
-        # Kein Fehlercode, da vielleicht einfach noch nichts da ist
         sys.exit(0) 
 
     updated_count = 0
-    sprite_mapping = load_sprite_mapping()
+    ext_mapping = load_external_mappings()
 
     for style_path in style_files:
-        # Pfad-Struktur: .../tiles/{tileset}/styles/{style_id}/style.json
         try:
             tileset = style_path.parents[2].name
             style_id = style_path.parent.name
         except IndexError:
-            log_warn(f"Überspringe Datei mit unerwarteter Struktur: {style_path}")
             continue
 
-        # 1. Bestimme die passende PMTiles Datei
-        current_pmtiles = None
-        
-        # A) Exakter Match (Priorität!) - Style ID == PMTiles Name
-        candidate_exact = TILES_DIR / tileset / "pmtiles" / f"{style_id}.pmtiles"
-        if candidate_exact.exists():
-            current_pmtiles = candidate_exact.name
-        
-        # B) Mapping / Global
-        if not current_pmtiles:
-            current_pmtiles = pmtiles_map.get(tileset) or PMTILES_FILE_GLOBAL
-        
-        # C) Ordner Scan (Fallback)
-        if not current_pmtiles:
-            pmtiles_dir = TILES_DIR / tileset / "pmtiles"
-            if pmtiles_dir.exists():
-                pmtiles_files = sorted(p.name for p in pmtiles_dir.glob("*.pmtiles"))
-                if len(pmtiles_files) == 1:
-                    current_pmtiles = pmtiles_files[0]
-                elif len(pmtiles_files) > 1:
-                    log_warn(f"Mehrdeutigkeit bei {tileset}/{style_id}: {pmtiles_files}. Erwartete '{style_id}.pmtiles' nicht gefunden.")
+        style_key = f"{tileset}/{style_id}"
 
         # Style laden
         try:
@@ -307,27 +324,24 @@ def main():
         change_log = []
         font_replacements = set()
 
-        # Fonts ersetzen
+        # 1. Fonts normalisieren
         data = replace_fonts(data, changed, font_replacements)
         for old, new in sorted(font_replacements):
             change_log.append(f"      📝 Font: \"{old}\" -> \"{new}\"")
 
-        # Basemap-Attribution prüfen und ggf. auf MapLibre-kompatibles Format korrigieren
+        # 2. Basemap-Attribution
         normalize_basemap_attribution(data, tileset, style_id, changed, change_log)
 
-        # Sprite URL
-        if SPRITE_URL_TEMPLATE:
-            sprite_tileset = resolve_sprite_tileset(sprite_mapping, tileset, style_id)
-            new_sprite = (
-                SPRITE_URL_TEMPLATE.replace("{tileset}", sprite_tileset)
-                .replace("{style_id}", style_id)
-            )
+        # 3. Sprites (Absolute URL)
+        sprite_id = resolve_sprite_set(ext_mapping, tileset, style_id)
+        if ASSETS_BASE_URL:
+            new_sprite = f"{ASSETS_BASE_URL}/sprites/{sprite_id}/sprite"
             if data.get("sprite") != new_sprite:
-                change_log.append(f"      📝 Sprite: ... -> \"{new_sprite}\"")
+                change_log.append(f"      📝 Sprite: \"{data.get('sprite')}\" -> \"{new_sprite}\"")
                 data["sprite"] = new_sprite
                 changed[0] = True
 
-        # Glyphs URL
+        # 4. Glyphs (Absolute URL)
         if GLYPHS_URL_TEMPLATE:
             new_glyphs = (
                 GLYPHS_URL_TEMPLATE.replace("{tileset}", tileset)
@@ -339,35 +353,35 @@ def main():
                 data["glyphs"] = new_glyphs
                 changed[0] = True
 
-        # Sources URL (PMTiles)
+        # 5. Sources (PMTiles Absolute URL)
         sources = data.get("sources", {})
         if isinstance(sources, dict):
             for s_key, source in sources.items():
                 if not isinstance(source, dict): continue
                 if source.get("type") != "vector": continue
 
-                old_url = source.get("url")
-                if not isinstance(old_url, str): continue
+                old_url = source.get("url", "")
                 
-                # Ziel-Filename extrahieren oder bestimmen
-                # Falls in der URL schon ein pmtiles Filename steht, nehmen wir den
+                # Ziel-Filename bestimmen
                 target_filename = None
-                if ".pmtiles" in old_url:
+                
+                # A) Aus Manifest (Sicherste Quelle)
+                if style_key in ext_mapping["pmtiles"]:
+                    target_filename = ext_mapping["pmtiles"][style_key]
+                
+                # B) Fallback auf bestehenden Filename in URL
+                if not target_filename and ".pmtiles" in old_url:
                     target_filename = old_url.split("/")[-1].split("?")[0]
                 
-                # Spezialfall OSM
-                if tileset == "osm" and s_key == "openmaptiles":
-                    target_filename = current_pmtiles or target_filename or f"{style_id}.pmtiles"
-                
-                # Falls wir bisher nichts haben, versuchen wir es mit der style_id
+                # C) Fallback auf style_id
                 if not target_filename:
                     target_filename = f"{style_id}.pmtiles"
                 
-                # URL auflösen
+                # Absolute URL bauen
                 new_url = find_pmtiles_url(target_filename, tileset)
                 
                 if new_url and new_url != old_url:
-                    change_log.append(f"      📝 Source '{s_key}': ... -> \"{target_filename}\"")
+                    change_log.append(f"      📝 Source '{s_key}': {old_url} -> {new_url}")
                     source["url"] = new_url
                     changed[0] = True
 
@@ -375,11 +389,11 @@ def main():
         if changed[0]:
             style_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
             updated_count += 1
-            log_success(f"Aktualisiert: {tileset}/{style_id} (PMTiles: {current_pmtiles})")
+            log_success(f"Aktualisiert: {style_key}")
             if change_log:
                 print("\n".join(change_log))
         else:
-            log_info(f"Keine Änderungen: {tileset}/{style_id}")
+            log_info(f"Keine Änderungen: {style_key}")
 
     print(f"✅ Fertig. {updated_count} Stylesheets aktualisiert.")
 

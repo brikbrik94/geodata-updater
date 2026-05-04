@@ -1,38 +1,29 @@
 #!/bin/bash
 set -euo pipefail
 
-# Konfiguration
+# =================================================================
+# ZENTRALE SETUP-ROUTINE (setup.sh)
+# =================================================================
+# Initialisiert das System für die neue Plugin-Architektur.
+
+# Konfiguration (Standardwerte)
 USER_NAME="${USER_NAME:-geo}"
 INSTALL_DIR="${INSTALL_DIR:-/srv/scripts}"
-
-# OSM
-OSM_BUILD_DIR="${OSM_BUILD_DIR:-/srv/build/osm}"
-TILESET_ID="${TILESET_ID:-osm}"
-if [ "$TILESET_ID" == "osm" ]; then
-    STYLE_ID="${STYLE_ID:-at-plus}"
-else
-    STYLE_ID="${STYLE_ID:-$TILESET_ID}"
-fi
-
-# Basemap (Standard)
-BASEMAP_BUILD_DIR="${BASEMAP_BUILD_DIR:-/srv/build/basemap-at}"
-
-# Overlays (NEU: Hier landen jetzt auch die Contours)
-OVERLAYS_BUILD_DIR="${OVERLAYS_BUILD_DIR:-/srv/build/overlays}"
-
 TILES_DIR="${TILES_DIR:-/srv/tiles}"
 ASSETS_DIR="${ASSETS_DIR:-/srv/assets}"
+INFO_DIR="${INFO_DIR:-/srv/info}"
 ORS_DIR="${ORS_DIR:-/srv/ors}"
-STYLE_SOURCE="${STYLE_SOURCE:-styles/style.json}"
+DOCS_DIR="${DOCS_DIR:-/srv/docs}"
+STYLES_DIR="${STYLES_DIR:-/srv/styles}"
+
 SPREET_IMAGE="${SPREET_IMAGE:-ghcr.io/flother/spreet:latest}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-STYLE_SOURCE_PATH="$REPO_ROOT/$STYLE_SOURCE"
 
-echo "=== OSM Geodata Pipeline Setup ==="
+echo "🚀 Starte Geodata Pipeline Setup (Plugin-Architektur)..."
 
-# 0. Benutzer & Gruppe
+# --- 0. Benutzer & Gruppe ---
 if ! id -u "$USER_NAME" >/dev/null 2>&1; then
     echo "[0] Erstelle System-User '$USER_NAME'..."
     sudo useradd --system --create-home --shell /usr/sbin/nologin "$USER_NAME"
@@ -41,82 +32,84 @@ if getent group docker >/dev/null 2>&1; then
     sudo usermod -aG docker "$USER_NAME"
 fi
 
-# 1. Pakete
+# --- 1. Pakete ---
 echo "[1] Installiere System-Pakete..."
 sudo apt-get update
-sudo apt-get install -y aria2 osmium-tool wget python3 python3-venv docker.io docker-cli acl unzip nodejs npm golang librsvg2-bin tree
-VENV_DIR="${VENV_DIR:-/srv/scripts/venv}"
+sudo apt-get install -y wget python3 python3-venv docker.io docker-cli acl unzip nodejs npm tree git curl rsync
+
+# Python Virtual Environment
+VENV_DIR="$INSTALL_DIR/venv"
 if [ ! -d "$VENV_DIR" ]; then
+    echo "    📦 Erstelle Python Venv..."
+    sudo mkdir -p "$INSTALL_DIR"
     sudo python3 -m venv "$VENV_DIR"
 fi
-sudo "$VENV_DIR/bin/pip" install --upgrade pip pmtiles
+sudo "$VENV_DIR/bin/pip" install --upgrade pip
 
+# Docker Images
 if command -v docker >/dev/null 2>&1; then
+    echo "    🐳 Lade Docker Images..."
     if ! sudo docker pull "$SPREET_IMAGE"; then
-        echo "WARNUNG: spreet Image konnte nicht geladen werden."
+        echo "    ⚠️  Warnung: spreet Image konnte nicht geladen werden."
     fi
 fi
 
-# 2. Ordnerstruktur
-echo "[2] Erstelle Ordnerstruktur in /srv..."
-sudo mkdir -p "$INSTALL_DIR/stats" "$INSTALL_DIR/sources"
+# --- 2. Ordnerstruktur ---
+echo "[2] Erstelle Verzeichnisstruktur in /srv..."
 
-# OSM
-sudo mkdir -p "$OSM_BUILD_DIR/src" "$OSM_BUILD_DIR/tmp" "$OSM_BUILD_DIR/merged"
-sudo mkdir -p "$TILES_DIR/$TILESET_ID/pmtiles" "$TILES_DIR/$TILESET_ID/tilejson" "$TILES_DIR/$TILESET_ID/styles/$STYLE_ID"
+# Basis-Verzeichnisse
+sudo mkdir -p "$INSTALL_DIR" "$INFO_DIR/attribution" "$DOCS_DIR" "$STYLES_DIR"
 
-# Basemap
-sudo mkdir -p "$BASEMAP_BUILD_DIR/src" "$BASEMAP_BUILD_DIR/tmp"
-sudo mkdir -p "$TILES_DIR/basemap-at/pmtiles" "$TILES_DIR/basemap-at/tilejson" "$TILES_DIR/basemap-at/styles/basemap-at"
+# Tiles-Struktur (Kategorien basierend auf Plugin-Standard)
+for cat in "basemaps" "overlays" "elevation"; do
+    sudo mkdir -p "$TILES_DIR/$cat/pmtiles"
+    sudo mkdir -p "$TILES_DIR/$cat/tilejson"
+    sudo mkdir -p "$TILES_DIR/$cat/styles"
+done
 
-# Overlays (NEU: Ersetzt den alten Contours-Block)
-sudo mkdir -p "$OVERLAYS_BUILD_DIR/contours/src" "$OVERLAYS_BUILD_DIR/contours/tmp"
-sudo mkdir -p "$OVERLAYS_BUILD_DIR/openskimap/src" "$OVERLAYS_BUILD_DIR/openskimap/tmp"
-sudo mkdir -p "$TILES_DIR/overlays/pmtiles" "$TILES_DIR/overlays/tilejson" "$TILES_DIR/overlays/styles"
+# Assets
+sudo mkdir -p "$ASSETS_DIR/fonts" "$ASSETS_DIR/sprites"
 
-# Elevation / Terrain (DEM)
-# Enthält reine Höhendaten (z. B. terrain-rgb.pmtiles) ohne eigenes Style.
-sudo mkdir -p "$TILES_DIR/elevation/pmtiles" "$TILES_DIR/elevation/tilejson"
+# ORS (Optional/Manuell)
+sudo mkdir -p "$ORS_DIR/graphs" "$ORS_DIR/logs" "$ORS_DIR/tmp"
 
-# Assets & ORS
-sudo mkdir -p "$ASSETS_DIR/fonts" "$ASSETS_DIR/sprites" /srv/info/attribution
-sudo mkdir -p "$ORS_DIR/emergency" "$ORS_DIR/graphs" "$ORS_DIR/logs" "$ORS_DIR/tmp"
-sudo mkdir -p /srv/styles /srv/docs
+# --- 3. Dateien kopieren ---
+echo "[3] Kopiere Skripte und Konfiguration..."
 
-# 3. Kopieren
-echo "[3] Kopiere Dateien..."
-sudo cp "$REPO_ROOT"/scripts/* "$INSTALL_DIR/"
+# Skripte (inkl. Unterordner tools, inventory, ors)
+sudo rsync -av --delete "$REPO_ROOT/scripts/" "$INSTALL_DIR/"
 
-if [ -d "$REPO_ROOT/conf/sources" ]; then
-    sudo cp "$REPO_ROOT"/conf/sources/*.txt "$INSTALL_DIR/sources/"
+# Konfiguration
+if [ -d "$REPO_ROOT/conf" ]; then
+    sudo mkdir -p /srv/conf
+    sudo cp -r "$REPO_ROOT/conf/"* /srv/conf/
 fi
 
+# Styles (Vorlagen)
 if [ -d "$REPO_ROOT/styles" ]; then
-    sudo cp -r "$REPO_ROOT"/styles/* /srv/styles/
+    sudo cp -r "$REPO_ROOT/styles/"* "$STYLES_DIR/"
 fi
 
+# Dokumentation
 if [ -d "$REPO_ROOT/docs" ]; then
-    sudo cp "$REPO_ROOT"/docs/*.md /srv/docs/
+    sudo cp -r "$REPO_ROOT/docs/"* "$DOCS_DIR/"
 fi
 
-if [ -f "$STYLE_SOURCE_PATH" ]; then
-    sudo cp "$STYLE_SOURCE_PATH" "$TILES_DIR/$TILESET_ID/styles/$STYLE_ID/style.json"
+# --- 4. Assets vorbereiten ---
+if [ -f "$INSTALL_DIR/run_assets.sh" ]; then
+    echo "[4] Starte initiale Asset-Generierung (Fonts/Sprites)..."
+    # Wir führen es als geo user aus, falls möglich
+    sudo -u "$USER_NAME" bash "$INSTALL_DIR/run_assets.sh"
 fi
 
-# --- ASSETS VORBEREITEN ---
-log_section "Assets Vorbereitung"
-if [ -f "$SCRIPT_DIR/run_assets.sh" ]; then
-    "$SCRIPT_DIR/run_assets.sh"
-else
-    log_warn "run_assets.sh nicht gefunden. Bitte Fonts und Sprites manuell prüfen."
-fi
+# --- 5. Rechte setzen ---
+echo "[5] Setze Berechtigungen..."
+sudo chmod +x "$INSTALL_DIR/"*.sh "$INSTALL_DIR/"*.py
+sudo chmod +x "$INSTALL_DIR/tools/"*.sh 2>/dev/null || true
+sudo chmod +x "$INSTALL_DIR/inventory/"*.py 2>/dev/null || true
+sudo chmod +x "$INSTALL_DIR/inventory/"*.sh 2>/dev/null || true
+sudo chmod +x "$INSTALL_DIR/ors/"*.sh 2>/dev/null || true
 
-log_success "Setup vollständig abgeschlossen! Du kannst nun 'start.sh' ausführen."
+sudo chown -R "$USER_NAME":"$USER_NAME" /srv/tiles /srv/assets /srv/scripts /srv/ors /srv/docs /srv/styles /srv/conf /srv/info
 
-
-# 4. Rechte
-echo "[4] Setze Berechtigungen..."
-sudo chmod +x "$INSTALL_DIR/"*.sh
-sudo chown -R $USER_NAME:$USER_NAME /srv/tiles /srv/assets /srv/build /srv/scripts /srv/ors /srv/docs /srv/styles
-
-echo "=== Setup fertig! ==="
+echo "✅ Setup vollständig abgeschlossen!"

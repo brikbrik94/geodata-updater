@@ -1,119 +1,61 @@
 
 # Geodata Updater
 
-
-
 Eine automatisierte Pipeline für selbstgehostete Vektorkarten (PMTiles).
-
-Das System verarbeitet OpenStreetMap-Daten und basemap.at (Österreich) vollautomatisch.
-
-
+Das System fungiert als Orchestrator für externe Daten-Stacks (Plugins) und verwaltet das Deployment sowie die Bereitstellung von Styles, Fonts und Sprites.
 
 ## Features
 
-
-
-- **Multi-Map Support:** Konfiguration beliebig vieler Regionen via Textdateien (`conf/sources/*.txt`).
-
-- **Automatisierung:** Ein Befehl für Download, Merge, Konvertierung (Planetiler) und Deployment.
-
-- **Dynamisches Styling:** Stylesheets werden automatisch für jede generierte Karte erstellt.
-
-- **Österreich-Integration:** Spezielle Downloader für `basemap.at` (Vektorkarten & Höhenlinien).
-
-- **Routing:** Optionaler Trigger für OpenRouteService (ORS) Updates.
-
-
+- **Plugin-Architektur:** Datenverarbeitung (OSM, Basemap, OpenSkiMap) erfolgt in eigenständigen Repositories.
+- **Zentrales Deployment:** Automatisches Kopieren von PMTiles, Styles und Assets aus den Plugins in den Web-Root.
+- **Dynamisches Styling:** Automatisches Patching von Stylesheets mit korrekten URLs für PMTiles, Fonts und Sprites.
+- **Inventar-Management:** Automatische Generierung einer Master-JSON (`endpoints_info.json`) für Web-Frontends.
+- **Routing-Integration:** Unterstützung für OpenRouteService (ORS) Graph-Builds.
 
 ## Schnellstart
 
-
-
 ### 1. Installation
-
-Führe das Setup-Skript auf einem Debian/Ubuntu Server aus:
-
-
+Initialisiere das System auf einem Debian/Ubuntu Server:
 
 ```bash
-
 ./install.sh
-
 ```
 
+### 2. Externe Plugins konfigurieren
+Füge die Pfade zu deinen Geodata-Repositories in `conf/external_repos.txt` hinzu. Jedes Plugin muss eine `dist/manifest.json` enthalten.
 
-
-### 2. Karten konfigurieren
-
-Lege für jede gewünschte Karte eine `.txt` Datei in `conf/sources/` an.
-
-Der Dateiname bestimmt den Namen der Karte (z.B. `tirol.txt` -> `tirol.pmtiles`).
-
-
-
-**Beispiel `conf/sources/at-plus.txt`:**
-
+**Beispiel `conf/external_repos.txt`:**
 ```text
-
-[https://download.geofabrik.de/europe/austria-latest.osm.pbf](https://download.geofabrik.de/europe/austria-latest.osm.pbf)
-
-[https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf](https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf)
-
+/mnt/geodata/geodata-osm
+/mnt/geodata/geodata-basemap-at
 ```
-
-
 
 ### 3. Pipeline starten
-
-Aktualisiert alle konfigurierten Karten:
-
-
+Aktualisiert alle konfigurierten Plugins und führt das Deployment durch:
 
 ```bash
-
 /srv/scripts/start.sh
-
 ```
-
-
 
 ## Dokumentation
 
+Detaillierte technische Informationen:
 
+- [📄 Technische Referenz](docs/TECHNICAL_DETAILS.md): Details zum Deployment-Prozess, Manifest-Standard und Asset-Management.
+- [📂 Ordnerstruktur](docs/FOLDER_STRUCTURE.md): Detaillierte Übersicht der Verzeichnisse auf dem Server.
+- [🔌 Plugin-Standard](docs/EXTERNAL_PLUGINS.md): Definition der `manifest.json` und der Sprite-Konventionen.
 
-Detaillierte technische Informationen wurden in separate Dokumente ausgelagert:
+## Zentrale Komponenten (/srv/scripts/)
 
-
-
-- [📄 Technische Referenz](docs/TECHNICAL_DETAILS.md): Details zu Basemap-URLs, ORS-Befehlen und Script-Parametern.
-
-- [📂 Ordnerstruktur](docs/FOLDER_STRUCTURE.md): Detaillierte Übersicht aller Verzeichnisse auf dem Server.
-
-- [🔄 Ablaufdiagramm](docs/deploy_flow.md): Visuelle Darstellung der Pipeline.
-
-
-
-## Deployment Befehle
-
-
-
-| Befehl | Beschreibung |
-
+| Komponente | Beschreibung |
 | :--- | :--- |
-
-| `/srv/scripts/deploy_pmtiles.sh` | Kopiert fertige PMTiles in den öffentlichen Ordner. |
-
-| `/srv/scripts/deploy_stylesheets.sh` | Generiert Style-Ordner und passt URLs an. |
-
-| `/srv/scripts/deploy_all.sh` | Führt beides aus + generiert Info-JSONs. |
-
-
+| `start.sh` | Haupt-Einstiegspunkt der Pipeline. |
+| `run_external_updates.sh` | Triggert die `update.sh` in allen Plugins. |
+| `run_deploy.sh` | Orchestriert das Deployment und die Inventar-Erstellung. |
+| `run_inventory.py` | Generiert alle Inventar-Listen (Tiles, Sprites, Fonts). |
+| `run_assets.sh` | Baut Fonts und Standard-Sprites (Maki/Temaki). |
 
 ## Voraussetzungen
-
 - Linux (Debian/Ubuntu)
-
 - Docker & Docker CLI
-
 - Python 3, Node.js
-

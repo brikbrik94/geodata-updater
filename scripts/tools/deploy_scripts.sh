@@ -3,7 +3,8 @@ set -euo pipefail
 
 # Verzeichnis dieses Skripts ermitteln
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+# Da das Skript nun in scripts/tools/ liegt, müssen wir zwei Ebenen nach oben
+REPO_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Zielverzeichnisse auf dem Server (Standard: /srv)
 TARGET_BASE="${TARGET_BASE:-/srv}"

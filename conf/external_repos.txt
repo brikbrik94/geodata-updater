@@ -2,4 +2,7 @@
 # Pfade müssen absolut sein oder relativ zum Home-Verzeichnis (z.B. ~/git/overlays).
 # Ein Repository muss einen 'dist/' Ordner mit 'manifest.json' enthalten.
 
-/root/git/overlays
+/mnt/geodata/geodata-osm
+/mnt/geodata/geodata-basemap-at
+/mnt/geodata/geodata-openskimap
+/mnt/geodata/geodata-overlays

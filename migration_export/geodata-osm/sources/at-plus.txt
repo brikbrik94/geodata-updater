@@ -1,0 +1,4 @@
+https://download.geofabrik.de/europe/austria-latest.osm.pbf
+https://download.geofabrik.de/europe/germany/bayern/niederbayern-latest.osm.pbf
+https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf
+https://download.geofabrik.de/europe/czech-republic-latest.osm.pbf

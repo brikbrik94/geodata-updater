@@ -23,11 +23,12 @@ Das Manifest im Root von `dist/` steuert den Deployment-Prozess.
 {
   "version": "1.0",
   "project": "Mein Spezial-Overlay",
-  "tileset": "overlays", 
   "generated_at": "2026-04-09T08:00:00Z",
   "datasets": [
     {
       "id": "meine-karte",
+      "type": "overlay",
+      "source": "osm",
       "name": "Meine Spezialkarte",
       "style_path": "styles/style.json",
       "pmtiles_path": "pmtiles/data.pmtiles"
@@ -51,21 +52,21 @@ Das Manifest im Root von `dist/` steuert den Deployment-Prozess.
 ```
 
 ### Felder im Detail
-- **`tileset`**: Bestimmt die Kategorie im Zielsystem.
-  - `osm`, `basemap-at` -> Grundkarten
-  - `overlays` -> Overlays (Standard)
 - **`datasets`**: Ein Array von Karten-Definitionen.
   - `id`: Eindeutiger Bezeichner (wird Teil der URL).
+  - `type`: `basemap` (Grundkarte) oder `overlay` (Zusatzebene). Bestimmt die prinzipielle Kategorie und Behandlung im System.
+  - `source`: (Optional) Z.B. `osm` oder `basemap-at`. Dies ist eine reine Quellinformation (Metadaten) und hat **keine** Auswirkung auf den Programmablauf oder die Ordnerstruktur beim Deployment.
   - `name`: Anzeigename des Datensatzes.
   - `style_path`: Relativer Pfad zur `style.json` innerhalb von `dist/`.
   - `pmtiles_path`: Relativer Pfad zur `.pmtiles` Datei innerhalb von `dist/`.
-  - `sprite_id`: (Optional) ID des zu verwendenden Spritesets (muss unter `resources.sprites` definiert sein). Überschreibt Standard-Mappings.
+  - `sprite_id`: (Pflicht, falls das Stylesheet Icons/Sprites verwendet) ID des zu verwendenden Spritesets. Es gibt keine impliziten Fallbacks über die Ordnerstruktur mehr. Die ID muss entweder unter `resources.sprites` definiert sein (wenn das Plugin eigene Sprites mitbringt) oder einem globalen Set entsprechen (z. B. `temaki` für OSM oder `basemap-at`).
 - **`resources`**: Optionale zusätzliche Assets.
-  - `sprites`: Kopiert den `path` nach `/srv/assets/sprites/<id>/`.
-  - `fonts`: Kopiert den `path` nach `/srv/assets/fonts/<id>/`.
+  - `sprites`: Stellt eigene Sprites bereit. Kopiert den `path` nach `/srv/assets/sprites/<id>/`. **Muss** ein Array von Objekten sein: `[{"id": "...", "path": "..."}]`. Reine String-Arrays sind ungültig.
+  - `fonts`: Stellt eigene Fonts bereit. Kopiert den `path` nach `/srv/assets/fonts/<id>/`. **Muss** ein Array von Objekten sein: `[{"id": "...", "path": "..."}]`.
 
 ### Abwärtskompatibilität
 Der Updater unterstützt für eine Übergangszeit auch:
+- Ein globales `tileset` Feld (wird intern zu `type` gemapped).
 - `overlays` (Array) anstelle von `datasets`.
 - `sprite_url` anstelle von `path` innerhalb der Sprites-Ressourcen.
 

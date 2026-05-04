@@ -1,0 +1,1 @@
+https://download.geofabrik.de/europe/austria-latest.osm.pbf
