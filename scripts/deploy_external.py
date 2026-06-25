@@ -46,16 +46,21 @@ def copy_file(src, dst, label, change_type=None):
         mark_updated(change_type)
     return "updated"
 
+def _dir_max_mtime(path: Path) -> float:
+    """Gibt den neuesten mtime aller Dateien im Verzeichnis zurück (rekursiv)."""
+    mtimes = [f.stat().st_mtime for f in path.rglob("*") if f.is_file()]
+    return max(mtimes) if mtimes else path.stat().st_mtime
+
 def copy_dir(src, dst, label, change_type=None):
     if not src.exists() or not src.is_dir():
         log_warn(f"{label} nicht gefunden oder kein Verzeichnis: {src}")
         return False
-    
-    # Grobe Inkremental-Prüfung für Verzeichnisse über den Zeitstempel des Ordners
+
+    # Inkrementelles Deployment: neuesten File-Mtime im Verzeichnis vergleichen.
+    # Ordner-mtime allein ist unzuverlässig, da Inplace-Überschreiben von Dateien
+    # den Ordner-Timestamp nicht aktualisiert.
     if dst.exists():
-        src_mtime = src.stat().st_mtime
-        dst_mtime = dst.stat().st_mtime
-        if src_mtime <= dst_mtime:
+        if _dir_max_mtime(src) <= _dir_max_mtime(dst):
             return "skipped"
 
     if dst.exists():
