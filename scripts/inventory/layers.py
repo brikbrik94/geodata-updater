@@ -38,7 +38,11 @@ def main():
                             "source_layer": g.get("source_layer"),
                             "name": g.get("name"),
                             "template": g.get("template"),
-                            "style_layers": g.get("style_layers", [])
+                            "style_layers": g.get("style_layers", []),
+                            "type": g.get("type"),
+                            "color": g.get("color"),
+                            "opacity": g.get("opacity"),
+                            "legend_items": g.get("legend_items")
                         }
                         layer_entry["groups"].append(group)
                     layers.append(layer_entry)
