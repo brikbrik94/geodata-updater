@@ -74,6 +74,135 @@ class LayersLegendPassthroughTest(unittest.TestCase):
         ])
         self.assertNotIn("original_file", group)
 
+    def test_group_passes_through_v1_1_fields(self):
+        self._write_staged_file("geodata-openskimap.json", {
+            "version": "1.1",
+            "styles": [
+                {
+                    "style_id": "openskimap",
+                    "name": "OpenSkiMap",
+                    "pmtiles_path": "openskimap.pmtiles",
+                    "groups": [
+                        {
+                            "source_layer": "ski_lifts",
+                            "name": "Lifte",
+                            "template": "ski-lifts",
+                            "original_file": "data/src/openskidata.gpkg",
+                            "style_layers": ["ski-lifts-casing", "ski-lifts-line"],
+                            "type": "line",
+                            "color": None,
+                            "opacity": 0.8,
+                            "width": 3.0,
+                            "dasharray": None,
+                            "outline_color": "hsl(0, 0%, 100%)",
+                            "outline_width": 5.0,
+                            "icon": None,
+                            "legend_items": [{"label": "Operating", "color": "hsl(0, 82%, 42%)"}],
+                            "legend_scale_id": None
+                        },
+                        {
+                            "source_layer": "ski_runs_downhill_poly",
+                            "name": "Pisten",
+                            "template": "ski-runs-downhill",
+                            "style_layers": ["ski-runs-downhill-fill"],
+                            "type": "fill",
+                            "color": None,
+                            "opacity": 0.25,
+                            "width": None,
+                            "dasharray": None,
+                            "outline_color": None,
+                            "outline_width": 5.0,
+                            "icon": None,
+                            "legend_items": None,
+                            "legend_scale_id": "ski-difficulty-v1"
+                        }
+                    ]
+                }
+            ],
+            "legend_sections": [
+                {
+                    "id": "ski-difficulty-v1",
+                    "label": "Schwierigkeitsgrade",
+                    "items": [
+                        {"label": "Novice", "color": "hsl(125, 100%, 33%)"},
+                        {"label": "Easy", "color": "hsl(208, 100%, 33%)"}
+                    ]
+                }
+            ]
+        })
+
+        layers.main()
+
+        output = json.loads(self.output_file.read_text(encoding="utf-8"))
+        groups = {g["source_layer"]: g for g in output["layers"][0]["groups"]}
+
+        lifts = groups["ski_lifts"]
+        self.assertEqual(lifts["width"], 3.0)
+        self.assertEqual(lifts["outline_color"], "hsl(0, 0%, 100%)")
+        self.assertEqual(lifts["outline_width"], 5.0)
+        self.assertIsNone(lifts["dasharray"])
+        self.assertIsNone(lifts["icon"])
+        self.assertIsNone(lifts["legend_scale_id"])
+
+        runs = groups["ski_runs_downhill_poly"]
+        self.assertEqual(runs["legend_scale_id"], "ski-difficulty-v1")
+        self.assertIsNone(runs["legend_items"])
+        self.assertEqual(runs["outline_width"], 5.0)
+
+        self.assertEqual(output["legend_sections"], [
+            {
+                "id": "ski-difficulty-v1",
+                "label": "Schwierigkeitsgrade",
+                "items": [
+                    {"label": "Novice", "color": "hsl(125, 100%, 33%)"},
+                    {"label": "Easy", "color": "hsl(208, 100%, 33%)"}
+                ]
+            }
+        ])
+
+    def test_legend_sections_deduplicated_across_sources_first_wins(self):
+        section = {
+            "id": "ski-difficulty-v1",
+            "label": "Schwierigkeitsgrade",
+            "items": [{"label": "Novice", "color": "hsl(125, 100%, 33%)"}]
+        }
+        conflicting_section = {
+            "id": "ski-difficulty-v1",
+            "label": "Sollte ignoriert werden",
+            "items": [{"label": "Anders", "color": "#000000"}]
+        }
+        self._write_staged_file("a-geodata-openskimap.json", {
+            "version": "1.1",
+            "styles": [],
+            "legend_sections": [section]
+        })
+        self._write_staged_file("b-geodata-other.json", {
+            "version": "1.1",
+            "styles": [],
+            "legend_sections": [conflicting_section]
+        })
+
+        layers.main()
+
+        output = json.loads(self.output_file.read_text(encoding="utf-8"))
+        self.assertEqual(output["legend_sections"], [section])
+
+    def test_legend_sections_null_when_no_source_has_any(self):
+        self._write_staged_file("geodata-osm.json", {
+            "version": "1.0",
+            "styles": [{
+                "style_id": "roads",
+                "name": "Roads",
+                "pmtiles_path": "pmtiles/roads.pmtiles",
+                "groups": []
+            }]
+        })
+
+        layers.main()
+
+        output = json.loads(self.output_file.read_text(encoding="utf-8"))
+        self.assertIsNone(output["legend_sections"])
+
     def test_group_without_new_fields_defaults_to_null(self):
         self._write_staged_file("geodata-osm.json", {
             "version": "1.0",
@@ -104,7 +233,13 @@ class LayersLegendPassthroughTest(unittest.TestCase):
         self.assertIsNone(group["type"])
         self.assertIsNone(group["color"])
         self.assertIsNone(group["opacity"])
+        self.assertIsNone(group["width"])
+        self.assertIsNone(group["dasharray"])
+        self.assertIsNone(group["outline_color"])
+        self.assertIsNone(group["outline_width"])
+        self.assertIsNone(group["icon"])
         self.assertIsNone(group["legend_items"])
+        self.assertIsNone(group["legend_scale_id"])
         self.assertNotIn("original_file", group)
 
     def test_version_is_tracked_per_source_not_globally_aggregated(self):

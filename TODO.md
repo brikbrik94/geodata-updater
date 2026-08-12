@@ -1,15 +1,24 @@
 # TODO
 
-## `legend_scale_id`/`legend_sections` (Plugin-Standard §5.5/§5.6) noch nicht in `layers_info.json`
+## ~~`legend_scale_id`/`legend_sections` (Plugin-Standard §5.5/§5.6) fehlten in `layers_info.json`~~ (gelöst 2026-08-12, Issue #97)
 
-Beim Fix von GitHub-Issue #96 (`version`-Passthrough) aufgefallen: `scripts/inventory/layers.py`
-gibt pro Group nur `type`/`color`/`opacity`/`legend_items` weiter (aus PR f60eaf0). Die in
-`geodata-plugin-standard` §5.3/§5.5/§5.6 spezifizierten Felder `legend_scale_id` auf Group-Ebene
-und der Top-Level-Block `legend_sections` (geteilte Farbskalen, z.B. Ski-Schwierigkeitsgrade)
-fehlen komplett. Referenz-Implementierung dafür liegt laut Standard-§5.8 im Repo `overlays`
-(`scripts/layer_metadata_extractor.py`/`generate_layer_list.py`) — hier in `layers.py` fehlt nur
-die Aggregations-Seite. Nicht im Scope von #96 mitgefixt, siehe Mandat 2 in
-`oe5ith-coding-rules/AGENT_INSTRUCTIONS.md`.
+**Problem war:**
+`scripts/inventory/layers.py` gab pro Group nur `type`/`color`/`opacity`/`legend_items` weiter
+(aus PR f60eaf0). Die in `geodata-plugin-standard` §5.3 spezifizierten v1.1-Felder `width`,
+`dasharray`, `outline_color`, `outline_width`, `icon`, `legend_scale_id` sowie der
+Top-Level-Block `legend_sections` (§5.6, geteilte Farbskalen) fehlten komplett. Konkrete
+Regression: `geodata-openskimap` liefert seit seinem Rebuild bereits v1.1-konform
+`legend_scale_id`/`legend_sections` für Pisten/Loipen/Skitouren, die aggregierte, öffentlich
+ausgelieferte `layers_info.json` zeigte dadurch `legend_items: null` ohne jeden Hinweis auf die
+tatsächlichen Werte — die Schwierigkeitsgrad-Legende war live leer statt befüllt.
+
+**Lösung:**
+Group-Kopierlogik in `layers.py` um die fehlenden §5.3-Felder ergänzt (`.get(field)`-Muster wie
+bisher). Neuer Aggregationsschritt sammelt `legend_sections` aus jeder Quelldatei ein und
+dedupliziert nach `id` (erste gefundene Definition gewinnt, laut §5.5-Invariante ist der Inhalt
+pro `id` über alle Quellen identisch). Gegen die reale `geodata-openskimap/dist/layer-list.json`
+verifiziert — Ausgabe für `ski_runs_downhill_poly`/`legend_sections` entspricht exakt dem in
+Issue #97 dokumentierten Erwartungswert. 7 Unit-Tests in `test_layers.py` (vorher 2).
 
 ## Anpassung an `oe5ith-coding-rules`-Standard (Submodul seit 2026-08-12 eingebunden)
 

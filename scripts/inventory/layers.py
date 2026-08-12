@@ -20,7 +20,8 @@ def resolve_url(pmtiles_path):
 def main():
     print(f"⚙️  Aggregiere Layer-Listen zu {OUTPUT_FILE.name}...")
     layers = []
-    
+    legend_sections = {}
+
     if STAGING_DIR.exists():
         for f in sorted(STAGING_DIR.glob("*.json")):
             try:
@@ -44,17 +45,32 @@ def main():
                             "type": g.get("type"),
                             "color": g.get("color"),
                             "opacity": g.get("opacity"),
-                            "legend_items": g.get("legend_items")
+                            "width": g.get("width"),
+                            "dasharray": g.get("dasharray"),
+                            "outline_color": g.get("outline_color"),
+                            "outline_width": g.get("outline_width"),
+                            "icon": g.get("icon"),
+                            "legend_items": g.get("legend_items"),
+                            "legend_scale_id": g.get("legend_scale_id")
                         }
                         layer_entry["groups"].append(group)
                     layers.append(layer_entry)
+
+                # Geteilte Farbskalen (§5.5/§5.6): über alle Quellen nach id dedupliziert,
+                # erste gefundene Definition gewinnt (Standard garantiert identischen Inhalt
+                # pro id über alle Quellen hinweg).
+                for section in data.get("legend_sections") or []:
+                    section_id = section.get("id")
+                    if section_id and section_id not in legend_sections:
+                        legend_sections[section_id] = section
             except Exception as e:
                 print(f"⚠️  Fehler beim Verarbeiten von {f.name}: {e}")
 
     output_data = {
         "generated_at": datetime.datetime.now().isoformat(),
         "meta": {"tiles_base_url": TILES_BASE_URL},
-        "layers": layers
+        "layers": layers,
+        "legend_sections": list(legend_sections.values()) or None
     }
     
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
