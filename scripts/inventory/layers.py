@@ -25,12 +25,14 @@ def main():
         for f in sorted(STAGING_DIR.glob("*.json")):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
+                source_version = data.get("version")
                 for style in data.get("styles", []):
                     # Normalize and strip
                     layer_entry = {
                         "id": style.get("style_id"),
                         "name": style.get("name"),
                         "pmtiles_url": resolve_url(style.get("pmtiles_path")),
+                        "version": source_version,
                         "groups": []
                     }
                     for g in style.get("groups", []):

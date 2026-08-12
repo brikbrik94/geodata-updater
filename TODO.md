@@ -1,5 +1,16 @@
 # TODO
 
+## `legend_scale_id`/`legend_sections` (Plugin-Standard §5.5/§5.6) noch nicht in `layers_info.json`
+
+Beim Fix von GitHub-Issue #96 (`version`-Passthrough) aufgefallen: `scripts/inventory/layers.py`
+gibt pro Group nur `type`/`color`/`opacity`/`legend_items` weiter (aus PR f60eaf0). Die in
+`geodata-plugin-standard` §5.3/§5.5/§5.6 spezifizierten Felder `legend_scale_id` auf Group-Ebene
+und der Top-Level-Block `legend_sections` (geteilte Farbskalen, z.B. Ski-Schwierigkeitsgrade)
+fehlen komplett. Referenz-Implementierung dafür liegt laut Standard-§5.8 im Repo `overlays`
+(`scripts/layer_metadata_extractor.py`/`generate_layer_list.py`) — hier in `layers.py` fehlt nur
+die Aggregations-Seite. Nicht im Scope von #96 mitgefixt, siehe Mandat 2 in
+`oe5ith-coding-rules/AGENT_INSTRUCTIONS.md`.
+
 ## Anpassung an `oe5ith-coding-rules`-Standard (Submodul seit 2026-08-12 eingebunden)
 
 Dieses Repo wurde bisher unabhängig von den generischen Agenten-Regeln in
