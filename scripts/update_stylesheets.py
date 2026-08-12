@@ -279,21 +279,10 @@ def find_pmtiles_url(filename, tileset_hint=None):
 
 # --- KONFIGURATION ---
 TILES_DIR = Path(os.environ.get("TILES_DIR", "/srv/tiles"))
-STATE_DIR = Path("/tmp/geodata_state")
-# ... (restliche Pfade bleiben gleich)
 
 def main():
-    # Argument-Prüfung
-    force = "--force" in sys.argv
-
-    # Check ob Updates vorliegen
-    if not force:
-        has_tiles_update = (STATE_DIR / "updated_tiles").exists()
-        has_master_update = (STATE_DIR / "updated_master").exists()
-        
-        if not (has_tiles_update or has_master_update):
-            print("📦 [Styles] Überspringe Stylesheet-Update (keine Änderungen).")
-            return
+    # Kein Flag-basiertes Überspringen mehr: die Prüfung pro Datei unten ist idempotent
+    # (schreibt nur bei tatsächlicher Abweichung), daher wird bei jedem Lauf immer geprüft.
 
     # Suche alle style.json Dateien
     style_files = sorted(TILES_DIR.glob("*/styles/*/style.json"))
