@@ -72,7 +72,7 @@ class LayersLegendPassthroughTest(unittest.TestCase):
             {"label": "0-15 min", "color": "#10b981"},
             {"label": "15-30 min", "color": "#84cc16"}
         ])
-        self.assertNotIn("original_file", group)
+        self.assertEqual(group["original_file"], "Anfahrtszeit/Linz/15-0.geojson")
 
     def test_group_passes_through_v1_1_fields(self):
         self._write_staged_file("geodata-openskimap.json", {
@@ -203,7 +203,7 @@ class LayersLegendPassthroughTest(unittest.TestCase):
         output = json.loads(self.output_file.read_text(encoding="utf-8"))
         self.assertIsNone(output["legend_sections"])
 
-    def test_group_without_new_fields_defaults_to_null(self):
+    def test_group_only_contains_source_fields(self):
         self._write_staged_file("geodata-osm.json", {
             "version": "1.0",
             "styles": [
@@ -230,17 +230,88 @@ class LayersLegendPassthroughTest(unittest.TestCase):
         group = layer_entry["groups"][0]
 
         self.assertEqual(layer_entry["version"], "1.0")
-        self.assertIsNone(group["type"])
-        self.assertIsNone(group["color"])
-        self.assertIsNone(group["opacity"])
-        self.assertIsNone(group["width"])
-        self.assertIsNone(group["dasharray"])
-        self.assertIsNone(group["outline_color"])
-        self.assertIsNone(group["outline_width"])
-        self.assertIsNone(group["icon"])
-        self.assertIsNone(group["legend_items"])
-        self.assertIsNone(group["legend_scale_id"])
-        self.assertNotIn("original_file", group)
+        self.assertEqual(group, {
+            "source_layer": "roads",
+            "name": "Roads",
+            "template": "strassen",
+            "style_layers": ["roads-line"]
+        })
+
+    def test_group_passes_through_v2_0_render_parts_unmodified(self):
+        self._write_staged_file("geodata-overlays.json", {
+            "version": "2.0",
+            "styles": [
+                {
+                    "style_id": "loipen",
+                    "name": "Loipen",
+                    "pmtiles_path": "pmtiles/loipen.pmtiles",
+                    "groups": [
+                        {
+                            "source_layer": "ski_runs",
+                            "name": "Loipen",
+                            "template": "ski-runs",
+                            "original_file": "data/ski_runs.geojson",
+                            "style_layers": ["ski-runs-outline", "ski-runs-line"],
+                            "render": [
+                                {
+                                    "kind": "outline",
+                                    "color": {"mode": "scale", "scale_id": "ski-difficulty-v1"},
+                                    "opacity": 1,
+                                    "width": 5.0,
+                                    "dasharray": None,
+                                    "radius": None,
+                                    "icon": None
+                                },
+                                {
+                                    "kind": "line",
+                                    "color": {"mode": "fixed", "value": "#ffffff"},
+                                    "opacity": 1,
+                                    "width": 3.0,
+                                    "dasharray": None,
+                                    "radius": None,
+                                    "icon": None
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "legend_sections": [
+                {
+                    "id": "ski-difficulty-v1",
+                    "label": "Schwierigkeitsgrade",
+                    "items": [{"label": "Novice", "color": "hsl(125, 100%, 33%)"}]
+                }
+            ]
+        })
+
+        layers.main()
+
+        output = json.loads(self.output_file.read_text(encoding="utf-8"))
+        group = output["layers"][0]["groups"][0]
+
+        self.assertEqual(group["render"], [
+            {
+                "kind": "outline",
+                "color": {"mode": "scale", "scale_id": "ski-difficulty-v1"},
+                "opacity": 1,
+                "width": 5.0,
+                "dasharray": None,
+                "radius": None,
+                "icon": None
+            },
+            {
+                "kind": "line",
+                "color": {"mode": "fixed", "value": "#ffffff"},
+                "opacity": 1,
+                "width": 3.0,
+                "dasharray": None,
+                "radius": None,
+                "icon": None
+            }
+        ])
+        self.assertNotIn("legend_items", group)
+        self.assertNotIn("type", group)
 
     def test_version_is_tracked_per_source_not_globally_aggregated(self):
         self._write_staged_file("geodata-overlays.json", {

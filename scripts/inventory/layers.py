@@ -36,24 +36,12 @@ def main():
                         "version": source_version,
                         "groups": []
                     }
+                    # Group-Felder werden 1:1 durchgereicht (kein Allowlisting einzelner
+                    # Felder), da deren Inhalt/Struktur vom Plugin-Standard vorgegeben wird
+                    # (siehe geodata-plugin-standard §5.3ff) und sich zwischen dessen Versionen
+                    # ändert. Dieses Repo aggregiert nur, es interpretiert keine Standard-Felder.
                     for g in style.get("groups", []):
-                        group = {
-                            "source_layer": g.get("source_layer"),
-                            "name": g.get("name"),
-                            "template": g.get("template"),
-                            "style_layers": g.get("style_layers", []),
-                            "type": g.get("type"),
-                            "color": g.get("color"),
-                            "opacity": g.get("opacity"),
-                            "width": g.get("width"),
-                            "dasharray": g.get("dasharray"),
-                            "outline_color": g.get("outline_color"),
-                            "outline_width": g.get("outline_width"),
-                            "icon": g.get("icon"),
-                            "legend_items": g.get("legend_items"),
-                            "legend_scale_id": g.get("legend_scale_id")
-                        }
-                        layer_entry["groups"].append(group)
+                        layer_entry["groups"].append(dict(g))
                     layers.append(layer_entry)
 
                 # Geteilte Farbskalen (§5.5/§5.6): über alle Quellen nach id dedupliziert,
