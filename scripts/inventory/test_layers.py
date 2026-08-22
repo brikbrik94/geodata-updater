@@ -149,7 +149,7 @@ class LayersLegendPassthroughTest(unittest.TestCase):
         self.assertIsNone(runs["legend_items"])
         self.assertEqual(runs["outline_width"], 5.0)
 
-        self.assertEqual(output["legend_sections"], [
+        self.assertEqual(output["legend_scales"], [
             {
                 "id": "ski-difficulty-v1",
                 "label": "Schwierigkeitsgrade",
@@ -160,7 +160,7 @@ class LayersLegendPassthroughTest(unittest.TestCase):
             }
         ])
 
-    def test_legend_sections_deduplicated_across_sources_first_wins(self):
+    def test_legend_scales_deduplicated_across_sources_first_wins(self):
         section = {
             "id": "ski-difficulty-v1",
             "label": "Schwierigkeitsgrade",
@@ -185,9 +185,40 @@ class LayersLegendPassthroughTest(unittest.TestCase):
         layers.main()
 
         output = json.loads(self.output_file.read_text(encoding="utf-8"))
-        self.assertEqual(output["legend_sections"], [section])
+        self.assertEqual(output["legend_scales"], [section])
 
-    def test_legend_sections_null_when_no_source_has_any(self):
+    def test_legend_scales_dedup_across_mixed_schema_versions(self):
+        # Quellen migrieren unabhängig voneinander auf den v3.0-Standard - während der
+        # Übergangszeit muss ein Konsument gleichzeitig eine Quelle mit dem alten Feldnamen
+        # `legend_sections` (< v3.0) und eine mit dem neuen `legend_scales` (>= v3.0) verlustfrei
+        # zusammenführen können.
+        old_style_section = {
+            "id": "ski-difficulty-v1",
+            "label": "Schwierigkeitsgrade",
+            "items": [{"label": "Novice", "color": "hsl(125, 100%, 33%)"}]
+        }
+        new_style_section = {
+            "id": "lift-status-v1",
+            "label": "Lift-Status",
+            "items": [{"label": "Operating", "color": "#22c55e"}]
+        }
+        self._write_staged_file("a-geodata-overlays.json", {
+            "version": "2.1",
+            "styles": [],
+            "legend_sections": [old_style_section]
+        })
+        self._write_staged_file("b-geodata-openskimap.json", {
+            "version": "3.0",
+            "styles": [],
+            "legend_scales": [new_style_section]
+        })
+
+        layers.main()
+
+        output = json.loads(self.output_file.read_text(encoding="utf-8"))
+        self.assertEqual(output["legend_scales"], [old_style_section, new_style_section])
+
+    def test_legend_scales_null_when_no_source_has_any(self):
         self._write_staged_file("geodata-osm.json", {
             "version": "1.0",
             "styles": [{
@@ -201,7 +232,91 @@ class LayersLegendPassthroughTest(unittest.TestCase):
         layers.main()
 
         output = json.loads(self.output_file.read_text(encoding="utf-8"))
-        self.assertIsNone(output["legend_sections"])
+        self.assertIsNone(output["legend_scales"])
+
+    def test_legend_top_level_block_passed_through_and_concatenated(self):
+        # v3.0 (§5.4): `legend[]` ist ein eigenständiger, von `groups[]` getrennter Top-Level-
+        # Block pro Quelle. Der Aggregator reicht ihn 1:1 durch und hängt die Blöcke mehrerer
+        # Quellen aneinander - kein Dedup nach `heading` (keine globale Eindeutigkeit garantiert).
+        openskimap_legend = [
+            {
+                "heading": "Pisten",
+                "rows": [
+                    {
+                        "label": "Präpariert",
+                        "style_layer_ids": ["ski-runs-downhill-fill"],
+                        "render": [
+                            {
+                                "kind": "fill",
+                                "color": {"mode": "scale", "scale_id": "ski-difficulty-v1"},
+                                "stroke_color": None,
+                                "opacity": 0.7,
+                                "width": None,
+                                "dasharray": None,
+                                "radius": None,
+                                "stroke_width": None,
+                                "icon": None
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+        anfahrtszeit_legend = [
+            {
+                "heading": "Anfahrtszeit",
+                "rows": [
+                    {
+                        "label": "Anfahrtszeit",
+                        "style_layer_ids": ["15_0-fill"],
+                        "render": [
+                            {
+                                "kind": "fill",
+                                "color": {"mode": "scale", "scale_id": "anfahrtszeit-linz-15"},
+                                "stroke_color": None,
+                                "opacity": 0.6,
+                                "width": None,
+                                "dasharray": None,
+                                "radius": None,
+                                "stroke_width": None,
+                                "icon": None
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+        self._write_staged_file("a-geodata-openskimap.json", {
+            "version": "3.0",
+            "styles": [],
+            "legend": openskimap_legend
+        })
+        self._write_staged_file("b-geodata-overlays.json", {
+            "version": "3.0",
+            "styles": [],
+            "legend": anfahrtszeit_legend
+        })
+
+        layers.main()
+
+        output = json.loads(self.output_file.read_text(encoding="utf-8"))
+        self.assertEqual(output["legend"], openskimap_legend + anfahrtszeit_legend)
+
+    def test_legend_null_when_no_source_has_any(self):
+        self._write_staged_file("geodata-osm.json", {
+            "version": "1.0",
+            "styles": [{
+                "style_id": "roads",
+                "name": "Roads",
+                "pmtiles_path": "pmtiles/roads.pmtiles",
+                "groups": []
+            }]
+        })
+
+        layers.main()
+
+        output = json.loads(self.output_file.read_text(encoding="utf-8"))
+        self.assertIsNone(output["legend"])
 
     def test_group_only_contains_source_fields(self):
         self._write_staged_file("geodata-osm.json", {
